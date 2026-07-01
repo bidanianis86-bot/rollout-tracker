@@ -657,9 +657,9 @@ function buildOvThead(){
     <th class="chk" onclick="ovSort('b1n')">B1 NPS <span class="srt">&#8645;</span></th>
     <th class="chk" onclick="ovSort('ct')">CT <span class="srt">&#8645;</span></th>
     <th class="chk" onclick="ovSort('b2p')">B2 PS <span class="srt">&#8645;</span></th>
-    <th onclick="ovSort('p0')">P0 Status <span class="srt">&#8645;</span></th>
-    <th class="chk" onclick="ovSort('nb')"># Proj <span class="srt">&#8645;</span></th>
+    <th onclick="ovSort('p0')">Resizing Project <span class="srt">&#8645;</span></th>
     <th class="chk th-custom" onclick="ovSort('d2')">D2 Recap <span class="srt">&#8645;</span></th>
+    <th class="chk" onclick="ovSort('nb')"># Proj <span class="srt">&#8645;</span></th>
     ${cThs}
     <th onclick="ovSort('as')">Assignee <span class="srt">&#8645;</span></th>
     <th onclick="ovSort('fu')">Follow-up <span class="srt">&#8645;</span></th>
@@ -722,9 +722,9 @@ function renderOv(){
       <td>${r[17]?`<span class="rx-yes">&#10003;&nbsp;${r[17]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
       <td class="chk">${ck(r[4])}</td><td class="chk">${ck(r[5])}</td><td class="chk">${ck(r[6])}</td>
       <td class="chk">${ck(r[7])}</td><td class="chk">${ck(r[8])}</td>
-      <td>${r[14]?`<span class="p0-yes">P0&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
+      <td>${r[14]?`<span class="p0-yes">Resizing&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
       <td class="chk">${r[18]?'<span class="ck ck1" style="background:#ede9fe;color:#4c1d95">&#10003;</span>':'<span class="ck ck0">&middot;</span>'}</td>
+      <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
       ${cCells}
       <td style="font-size:.77rem;color:#445">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span> ':''} ${s.assignee||''}</td>
       <td style="font-size:.77rem;color:#778">${s.followup||''}</td>
@@ -1883,4 +1883,4 @@ showProjPage = function(key) {
   }
 };
 
-</script></body><
+</sc
