@@ -619,6 +619,20 @@ function rebuildSites(){
       SITES.push([sid,r.name||'',r.region||'',r.zone||'',0,0,0,0,0,1,r.energy||'','','','',0,'',0,'']);
     }
   });
+  // Also include Excel-only sites from static equip data
+  var seen=new Set(SITES.map(function(r){return r[0];}));
+  ALL_PROJS.forEach(function(p){
+    var v=STATIC_EQUIP[p.key];
+    if(!v)return;
+    Object.keys(v.vals).forEach(function(sid){
+      if(seen.has(sid))return;
+      seen.add(sid);
+      var row=new Array(20).fill('');
+      row[0]=sid;
+      row[p.idx]=1;
+      SITES.push(row);
+    });
+  });
 }
 
 function showApp(){
