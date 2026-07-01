@@ -562,6 +562,8 @@ function initFirebase(cfg){
     DB=firebase.database();
     setConn(true);
     listenData();
+    const ov=document.getElementById('setupOverlay');
+    if(ov) ov.classList.add('hidden');
   }catch(e){
     setConn(false);
     console.error('Firebase init error:',e);
@@ -1878,10 +1880,4 @@ showProjPage = function(key) {
   // Re-apply after Firebase call (in case listeners already fired)
   if(STATIC_EQUIP[key]) {
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
-    projEquipVals[key] = STATIC_EQUIP[key].vals;
-    buildProjThead();
-    renderProjTable();
-  }
-};
-
-</script></body></html>
+    projEquipVals[key] = STATIC_
