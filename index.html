@@ -1246,7 +1246,13 @@ function renderProjTable(){
   const vals=projEquipVals[key]||{};
   const extra=projExtraCols(key);
 
-  let rows=SITES.filter(r=>r&&r[0]&&r[proj.idx]);
+  let rows;
+  if(Object.keys(vals).length>0){
+    // Use site list from static/imported equipment data (all Excel sites)
+    rows=Object.keys(vals).map(sid=>BASE_MAP[sid]||[sid,'','','','','','','','','','','','','','','','','','']);
+  } else {
+    rows=SITES.filter(r=>r&&r[0]&&r[proj.idx]);
+  }
   if(q)rows=rows.filter(r=>r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q));
   if(fst)rows=rows.filter(r=>(states[r[0]]?.status||'none')===fst);
 
