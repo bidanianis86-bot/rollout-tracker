@@ -1867,6 +1867,23 @@ const STATIC_EQUIP = {
 // Build site-membership sets from static equip so overview/tracker can use all Excel sites
 const STATIC_PROJ_SITES={};
 Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Object.keys(v.vals));});
+// Merge Excel-only sites into SITES so overview shows ALL project sites
+(function(){
+  var seen=new Set(Object.keys(BASE_MAP));
+  ALL_PROJS.forEach(function(p){
+    var v=STATIC_EQUIP[p.key];
+    if(!v)return;
+    Object.keys(v.vals).forEach(function(sid){
+      if(seen.has(sid))return;
+      seen.add(sid);
+      var row=new Array(20).fill('');
+      row[0]=sid;
+      row[p.idx]=1;
+      SITES.push(row);
+      BASE_MAP[sid]=row;
+    });
+  });
+})();
 
 // Start app after all static data is ready
 const savedCfg=localStorage.getItem('fb_config');
