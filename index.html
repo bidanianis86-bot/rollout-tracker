@@ -1152,13 +1152,7 @@ const DEFAULT_FB_CFG={
   messagingSenderId:"54956620015",
   appId:"1:54956620015:web:25c5b0bf2a83cb8601031a"
 };
-const savedCfg=localStorage.getItem('fb_config');
-try{
-  const cfg=savedCfg?JSON.parse(savedCfg):DEFAULT_FB_CFG;
-  initFirebase(cfg);
-}catch(e){
-  initFirebase(DEFAULT_FB_CFG);
-}
+// Firebase init deferred — see bottom of script
 
 /* ══════════════════════════════════════════════════════
    PROJECT EQUIPMENT PAGES
@@ -1873,6 +1867,15 @@ const STATIC_EQUIP = {
 // Build site-membership sets from static equip so overview/tracker can use all Excel sites
 const STATIC_PROJ_SITES={};
 Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Object.keys(v.vals));});
+
+// Start app after all static data is ready
+const savedCfg=localStorage.getItem('fb_config');
+try{
+  const cfg=savedCfg?JSON.parse(savedCfg):DEFAULT_FB_CFG;
+  initFirebase(cfg);
+}catch(e){
+  initFirebase(DEFAULT_FB_CFG);
+}
 
 /* Override showProjPage: inject static data BEFORE Firebase listeners fire */
 const _origShowProjPage = showProjPage;
