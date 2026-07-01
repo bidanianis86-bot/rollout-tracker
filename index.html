@@ -1884,4 +1884,15 @@ showProjPage = function(key) {
     projListeners.add(key); // prevent Firebase equip listener being attached
   }
   _origShowProjPage(key);
-  // Re-apply after Fir
+  // Re-apply after Firebase call (in case listeners already fired)
+  if(STATIC_EQUIP[key]) {
+    projEquipMeta[key] = STATIC_EQUIP[key].meta;
+    projEquipVals[key] = STATIC_EQUIP[key].vals;
+    buildProjThead();
+    renderProjTable();
+  }
+};
+
+</script>
+</body>
+</html>
