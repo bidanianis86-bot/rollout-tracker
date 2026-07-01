@@ -678,7 +678,7 @@ function renderOv(){
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
     if(px&&!r[0].startsWith(px+'_'))return false;
-    if(pj&&!r[PM[pj]])return false;
+    if(pj&&!r[PM[pj]]&&!(STATIC_PROJ_SITES[pj]&&STATIC_PROJ_SITES[pj].has(r[0])))return false;
     if(en&&r[10]!==en)return false;
     if(st&&(states[r[0]]?.status||'none')!==st)return false;
     if(rxp&&r[17]!==rxp)return false;
@@ -700,11 +700,11 @@ function renderOv(){
   const setV=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   setV('oT',rows.length);setV('oB0',rows.filter(r=>r[4]).length);setV('oB1p',rows.filter(r=>r[5]).length);
   setV('oB1n',rows.filter(r=>r[6]).length);setV('oCt',rows.filter(r=>r[7]).length);setV('oB2p',rows.filter(r=>r[8]).length);
-  setV('oRx',rows.filter(r=>r[16]).length);setV('oP0',rows.filter(r=>r[14]).length);
+  setV('oRx',rows.filter(r=>r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0]))).length);setV('oP0',rows.filter(r=>r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0]))).length);
   setV('oPg',rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length);
   setV('oDn',rows.filter(r=>(states[r[0]]?.status||'none')==='done').length);
   setV('oBl',rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length);
-  setV('oD2',rows.filter(r=>r[18]).length);
+  setV('oD2',rows.filter(r=>r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0]))).length);
   const rcEl=document.getElementById('ovRc');if(rcEl)rcEl.textContent=rows.length+' sites shown';
   const nr=document.getElementById('ovNr');if(nr)nr.style.display=rows.length?'none':'block';
   const tbody=document.getElementById('ovBody');
@@ -962,7 +962,7 @@ function renderList(){
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
     if(fs&&(states[r[0]]?.status||'none')!==fs)return false;
-    if(fp&&!r[PM[fp]])return false;
+    if(fp&&!r[PM[fp]]&&!(STATIC_PROJ_SITES[fp]&&STATIC_PROJ_SITES[fp].has(r[0])))return false;
     if(fa&&(states[r[0]]?.assignee||'')!==fa)return false;
     if(fcp&&(states[r[0]]?.project||'')!==fcp)return false;
     return true;
@@ -987,9 +987,9 @@ function renderList(){
     if(r[6])tags.push('<span class="tag tag-b">B1NPS</span>');
     if(r[7])tags.push('<span class="tag tag-b">CT</span>');
     if(r[8])tags.push('<span class="tag tag-b">B2PS</span>');
-    if(r[16])tags.push(`<span class="tag tag-rx">${r[17]||'Recapex'}</span>`);
-    if(r[14])tags.push('<span class="tag tag-p0">P0</span>');
-    if(r[18])tags.push('<span class="tag" style="background:#ede9fe;color:#4c1d95">D2</span>');
+    if(r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))tags.push(`<span class="tag tag-rx">${r[17]||'Recapex'}</span>`);
+    if(r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))tags.push('<span class="tag tag-p0">Resizing</span>');
+    if(r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))tags.push('<span class="tag" style="background:#ede9fe;color:#4c1d95">D2</span>');
     return `<div class="si${r[0]===selId?' active':''}" onclick="selectSite('${r[0]}')">
       <span class="st-dot sd-${st}"></span>
       <div class="si-info"><div class="si-id">${r[0]}</div>
@@ -1037,9 +1037,9 @@ function selectSite(id){
   if(r[6])tags.push('<span class="badge tag-b">B1 NPS</span>');
   if(r[7])tags.push('<span class="badge tag-b">Ch. Typo</span>');
   if(r[8])tags.push('<span class="badge tag-b">B2 PS</span>');
-  if(r[16])tags.push(`<span class="badge tag-rx">&#10003; ${r[17]||'Recapex'}</span>`);
-  if(r[14])tags.push(`<span class="badge tag-p0">P0: ${r[15]}</span>`);
-  if(r[18])tags.push('<span class="badge" style="background:#ede9fe;color:#4c1d95">D2 Recapex</span>');
+  if(r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))tags.push(`<span class="badge tag-rx">&#10003; ${r[17]||'Recapex'}</span>`);
+  if(r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))tags.push(`<span class="badge tag-p0">Resizing: ${r[15]}</span>`);
+  if(r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))tags.push('<span class="badge" style="background:#ede9fe;color:#4c1d95">D2 Recapex</span>');
   document.getElementById('detHead').innerHTML=`
     <div class="dh-id">${r[0]}</div>
     <div class="dh-nm">${r[1]||'—'} &middot; ${r[2]||'—'} &middot; Zone ${r[3]||r[12]||'—'}</div>
@@ -1870,6 +1870,10 @@ const STATIC_EQUIP = {
   }
 };
 
+// Build site-membership sets from static equip so overview/tracker can use all Excel sites
+const STATIC_PROJ_SITES={};
+Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Object.keys(v.vals));});
+
 /* Override showProjPage: inject static data BEFORE Firebase listeners fire */
 const _origShowProjPage = showProjPage;
 showProjPage = function(key) {
@@ -1880,15 +1884,4 @@ showProjPage = function(key) {
     projListeners.add(key); // prevent Firebase equip listener being attached
   }
   _origShowProjPage(key);
-  // Re-apply after Firebase call (in case listeners already fired)
-  if(STATIC_EQUIP[key]) {
-    projEquipMeta[key] = STATIC_EQUIP[key].meta;
-    projEquipVals[key] = STATIC_EQUIP[key].vals;
-    buildProjThead();
-    renderProjTable();
-  }
-};
-
-</script>
-</body>
-</html>
+  // Re-apply after Fir
