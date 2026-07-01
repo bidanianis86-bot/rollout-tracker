@@ -388,7 +388,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
 </div>
 
 <!-- FIREBASE SETUP MODAL -->
-<div class="overlay" id="setupOverlay">
+<div class="overlay hidden" id="setupOverlay">
   <div class="modal setup-modal">
     <div class="modal-head">
       <h2>&#128293; Connect to Firebase Database</h2>
@@ -1880,4 +1880,4 @@ showProjPage = function(key) {
   // Re-apply after Firebase call (in case listeners already fired)
   if(STATIC_EQUIP[key]) {
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
-    projEquipVals[key] = STATIC_
+    projEquipVals[key] = 
