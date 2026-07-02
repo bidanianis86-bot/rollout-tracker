@@ -304,6 +304,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
           <option value="1">D2 Recapex only</option>
         </select>
         <button class="btn" onclick="resetOv()">Reset</button>
+        <button class="btn" onclick="exportOv()">&#11015; Export Excel</button>
         <button class="btn btn-primary" onclick="openUpload()">&#128228; Upload Project File</button>
         <button class="btn" onclick="openManageCols()">&#9881; Columns</button>
         <span class="rc" id="ovRc"></span>
@@ -363,6 +364,10 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
             <option value="all_done">&#10003; All Projects Done</option>
           </select>
           <select id="trAs" onchange="renderList()"><option value="">All Assignees</option></select>
+        </div>
+        <div style="display:flex;gap:6px;padding:4px 0 2px">
+          <button class="btn" style="flex:1;font-size:.75rem;padding:5px 4px" onclick="exportTracker()">&#11015; Export</button>
+          <button class="btn btn-primary" style="flex:1;font-size:.75rem;padding:5px 4px" onclick="openImportTracker()">&#128228; Import</button>
         </div>
       </div>
       <div class="sb-stats" id="sbSt"></div>
@@ -447,6 +452,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
       <option value="done">Done</option><option value="blocked">Blocked</option><option value="review">Under Review</option>
     </select>
     <button class="btn btn-primary" onclick="openProjUpload()">&#128228; Upload Equipment File</button>
+    <button class="btn" onclick="exportProjPage()">&#11015; Export Excel</button>
     <button class="btn" onclick="openManageProjCols()" title="Manage equipment columns">&#9881; Columns</button>
     <span class="pj-page-sub" id="pjSub"></span>
   </div>
@@ -506,6 +512,28 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
     </div>
     <div class="modal-body" id="manageBody"></div>
     <div class="modal-foot"><button class="btn" onclick="document.getElementById('manageOverlay').classList.add('hidden')">Close</button></div>
+  </div>
+</div>
+
+<!-- IMPORT TRACKER PROGRESS MODAL -->
+<div class="overlay hidden" id="importTrackerOverlay">
+  <div class="modal" style="width:500px">
+    <div class="modal-head">
+      <h2>&#128228; Import Tracker Progress</h2>
+      <button class="modal-close" onclick="document.getElementById('importTrackerOverlay').classList.add('hidden')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:10px;color:#555;font-size:.84rem">Upload an Excel file to bulk-update site progress. Columns recognised: <b>Site ID, Status, Assignee, Tagged Project, Follow-up, Note</b>.</p>
+      <div style="margin-bottom:12px">
+        <button class="btn" onclick="downloadTrackerTemplate()">&#11015; Download Template</button>
+      </div>
+      <input type="file" id="importTrackerFile" accept=".xlsx,.xls,.csv" style="width:100%;margin-bottom:10px;font-size:.83rem">
+      <div id="importTrackerPreview" style="max-height:220px;overflow-y:auto;font-size:.8rem;color:#444"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="document.getElementById('importTrackerOverlay').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" id="importTrackerApplyBtn" style="display:none" onclick="applyTrackerImport()">&#10003; Apply Import</button>
+    </div>
   </div>
 </div>
 
@@ -1906,6 +1934,217 @@ try{
   initFirebase(cfg);
 }catch(e){
   initFirebase(DEFAULT_FB_CFG);
+}
+
+/* ══════════════════════════════════════════════════════
+   EXPORT / IMPORT
+══════════════════════════════════════════════════════ */
+
+function _downloadXlsx(rows,filename){
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,'Data');
+  XLSX.writeFile(wb,filename);
+}
+
+function exportOv(){
+  // Mirror exact filter logic from renderOv()
+  var q=(document.getElementById('ovQ')?.value||'').toLowerCase();
+  var px=document.getElementById('ovPfx')?.value||'';
+  var pj=document.getElementById('ovPj')?.value||'';
+  var en=document.getElementById('ovEn')?.value||'';
+  var st=document.getElementById('ovSt')?.value||'';
+  var rxp=document.getElementById('ovRxPj')?.value||'';
+  var ocp=document.getElementById('ovCurPj')?.value||'';
+  var d2f=document.getElementById('ovD2')?.value||'';
+  var filtered=SITES.filter(function(r){
+    if(!r||!r[0])return false;
+    if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
+    if(px&&!r[0].startsWith(px+'_'))return false;
+    if(pj&&!r[PM[pj]]&&!(STATIC_PROJ_SITES[pj]&&STATIC_PROJ_SITES[pj].has(r[0])))return false;
+    if(en&&r[10]!==en)return false;
+    if(st&&(states[r[0]]?.status||'none')!==st)return false;
+    if(rxp&&r[17]!==rxp)return false;
+    if(ocp&&(states[r[0]]?.project||'')!==ocp)return false;
+    if(d2f==='1'&&!r[18]&&!(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))return false;
+    return true;
+  });
+  var hdr=['Site ID','Site Name','Region','Zone','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','P0','D2 Recap','Status','Assignee','Tagged Project','Follow-up'];
+  var rows=[hdr];
+  filtered.forEach(function(r){
+    var s=states[r[0]]||{};
+    rows.push([
+      r[0],r[1]||'',r[2]||'',r[3]||'',
+      (r[4]||(STATIC_PROJ_SITES.b0&&STATIC_PROJ_SITES.b0.has(r[0])))?'Yes':'',
+      (r[5]||(STATIC_PROJ_SITES.b1ps&&STATIC_PROJ_SITES.b1ps.has(r[0])))?'Yes':'',
+      (r[6]||(STATIC_PROJ_SITES.b1nps&&STATIC_PROJ_SITES.b1nps.has(r[0])))?'Yes':'',
+      (r[7]||(STATIC_PROJ_SITES.ct&&STATIC_PROJ_SITES.ct.has(r[0])))?'Yes':'',
+      (r[8]||(STATIC_PROJ_SITES.b2ps&&STATIC_PROJ_SITES.b2ps.has(r[0])))?'Yes':'',
+      (r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))?'Yes':'',
+      (r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))?'Yes':'',
+      (r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))?'Yes':'',
+      STLBL[s.status||'none']||'',
+      s.assignee||'',
+      PJ_LABELS[s.project]||s.project||'',
+      s.followup||''
+    ]);
+  });
+  _downloadXlsx(rows,'Overview_Export.xlsx');
+}
+
+function exportTracker(){
+  var q=(document.getElementById('trQ')?.value||'').toLowerCase();
+  var fs=document.getElementById('trSt')?.value||'';
+  var fp=document.getElementById('trPj')?.value||'';
+  var fa=document.getElementById('trAs')?.value||'';
+  var fcp=document.getElementById('trCurPj')?.value||'';
+  var filtered=SITES.filter(function(r){
+    if(!r||!r[0])return false;
+    if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
+    if(fp&&!r[PM[fp]]&&!(STATIC_PROJ_SITES[fp]&&STATIC_PROJ_SITES[fp].has(r[0])))return false;
+    if(fs&&(states[r[0]]?.status||'none')!==fs)return false;
+    if(fa&&(states[r[0]]?.assignee||'')!==fa)return false;
+    if(fcp&&(states[r[0]]?.project||'')!==fcp)return false;
+    return true;
+  });
+  var hdr=['Site ID','Site Name','Region','Zone','Projects','Status','Assignee','Tagged Project','Follow-up'];
+  var rows=[hdr];
+  filtered.forEach(function(r){
+    var s=states[r[0]]||{};
+    var projs=ALL_PROJS.filter(function(p){return r[p.idx]||(STATIC_PROJ_SITES[p.key]&&STATIC_PROJ_SITES[p.key].has(r[0]));}).map(function(p){return p.label;});
+    rows.push([r[0],r[1]||'',r[2]||'',r[3]||'',projs.join(', '),STLBL[s.status||'none']||'',s.assignee||'',PJ_LABELS[s.project]||s.project||'',s.followup||'']);
+  });
+  _downloadXlsx(rows,'Tracker_Export.xlsx');
+}
+
+function exportProjPage(){
+  var key=curProjKey;
+  if(!key)return;
+  var proj=ALL_PROJS.find(function(p){return p.key===key;});
+  var fq=(document.getElementById('pjQ')?.value||'').toLowerCase();
+  var fst=document.getElementById('pjStFilter')?.value||'';
+  var meta=projEquipMeta[key]||[];
+  var vals=projEquipVals[key]||{};
+  var hdr=['Site ID','Site Name','Region','Zone','Status','Assignee','Tagged Project','Follow-up'].concat(meta.map(function(m){return m.display_name||m.col_key||'';}));
+  var rows=[hdr];
+  SITES.filter(function(r){
+    if(!r||!r[0])return false;
+    if(!r[proj.idx]&&!(STATIC_PROJ_SITES[key]&&STATIC_PROJ_SITES[key].has(r[0])))return false;
+    if(fq&&!(r[0].toLowerCase().includes(fq)||(r[1]||'').toLowerCase().includes(fq)))return false;
+    var sd=states[r[0]]||{};
+    if(fst&&(sd.status||'none')!==fst)return false;
+    return true;
+  }).forEach(function(r){
+    var s=states[r[0]]||{};
+    var eq=(vals[r[0]])||{};
+    var row=[r[0],r[1]||'',r[2]||'',r[3]||'',STLBL[s.status||'none']||'',s.assignee||'',PJ_LABELS[s.project]||s.project||'',s.followup||''];
+    meta.forEach(function(m){row.push(eq[m.col_key]!==undefined?eq[m.col_key]:'');});
+    rows.push(row);
+  });
+  var fname=(proj.label.replace(/[^a-zA-Z0-9]/g,'_'))+'_Export.xlsx';
+  _downloadXlsx(rows,fname);
+}
+
+/* ── Import tracker ── */
+var _importRows=[];
+
+function openImportTracker(){
+  _importRows=[];
+  var pr=document.getElementById('importTrackerPreview');
+  var fi=document.getElementById('importTrackerFile');
+  var ab=document.getElementById('importTrackerApplyBtn');
+  if(pr)pr.innerHTML='';
+  if(fi)fi.value='';
+  if(ab)ab.style.display='none';
+  document.getElementById('importTrackerOverlay').classList.remove('hidden');
+}
+
+document.getElementById('importTrackerFile').addEventListener('change',function(e){
+  var f=e.target.files[0];
+  if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var wb=XLSX.read(ev.target.result,{type:'array'});
+    var ws=wb.Sheets[wb.SheetNames[0]];
+    var data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    var pr=document.getElementById('importTrackerPreview');
+    if(!data||!data.length){pr.innerHTML='<span style="color:red">Empty file.</span>';return;}
+    var hdr=data[0].map(function(h){return (h||'').toString().trim().toLowerCase();});
+    var idIdx=hdr.findIndex(function(h){return h==='site id'||h==='site_id'||h==='siteid'||h==='id';});
+    var stIdx=hdr.findIndex(function(h){return h.includes('status');});
+    var asIdx=hdr.findIndex(function(h){return h.includes('assignee');});
+    var cpIdx=hdr.findIndex(function(h){return h.includes('tagged')||h==='project';});
+    var fuIdx=hdr.findIndex(function(h){return h.includes('follow');});
+    var ntIdx=hdr.findIndex(function(h){return h.includes('note');});
+    if(idIdx<0){pr.innerHTML='<span style="color:red">No "Site ID" column found. First column must be Site ID.</span>';return;}
+    _importRows=[];
+    data.slice(1).forEach(function(row){
+      var sid=(row[idIdx]||'').toString().trim();
+      if(!sid)return;
+      var obj={site:sid};
+      if(stIdx>=0&&row[stIdx])obj.status=(row[stIdx]||'').toString().trim().toLowerCase();
+      if(asIdx>=0&&row[asIdx])obj.assignee=(row[asIdx]||'').toString().trim();
+      if(cpIdx>=0&&row[cpIdx])obj.project=(row[cpIdx]||'').toString().trim();
+      if(fuIdx>=0&&row[fuIdx])obj.followup=(row[fuIdx]||'').toString().trim();
+      if(ntIdx>=0&&row[ntIdx])obj.note=(row[ntIdx]||'').toString().trim();
+      _importRows.push(obj);
+    });
+    var prev='<b style="font-size:.83rem">Preview (first 10 of '+_importRows.length+' rows):</b><table style="width:100%;border-collapse:collapse;margin-top:6px"><tr style="background:#e8f0fe;font-size:.77rem">';
+    ['Site ID','Status','Assignee','Project','Follow-up','Note'].forEach(function(h){prev+='<th style="border:1px solid #c0cfe0;padding:3px 6px;text-align:left">'+h+'</th>';});
+    prev+='</tr>';
+    _importRows.slice(0,10).forEach(function(r){
+      prev+='<tr><td style="border:1px solid #e5e5e5;padding:2px 6px;font-size:.77rem">'+r.site+'</td><td style="border:1px solid #e5e5e5;padding:2px 6px">'+(r.status||'')+'</td><td style="border:1px solid #e5e5e5;padding:2px 6px">'+(r.assignee||'')+'</td><td style="border:1px solid #e5e5e5;padding:2px 6px">'+(r.project||'')+'</td><td style="border:1px solid #e5e5e5;padding:2px 6px">'+(r.followup||'')+'</td><td style="border:1px solid #e5e5e5;padding:2px 6px">'+(r.note||'')+'</td></tr>';
+    });
+    prev+='</table>';
+    pr.innerHTML=prev;
+    var ab=document.getElementById('importTrackerApplyBtn');
+    if(ab)ab.style.display=_importRows.length?'':'none';
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+function applyTrackerImport(){
+  if(!_importRows.length||!DB)return;
+  var btn=document.getElementById('importTrackerApplyBtn');
+  if(btn){btn.disabled=true;btn.textContent='Importing...';}
+  var stateUpdates={};
+  var notePromises=[];
+  var ts=Date.now();
+  _importRows.forEach(function(r){
+    var sid=r.site;
+    var cur=states[sid]||{};
+    var upd={
+      status:r.status||cur.status||'none',
+      assignee:r.assignee!==undefined?r.assignee:(cur.assignee||''),
+      project:r.project!==undefined?r.project:(cur.project||''),
+      followup:r.followup!==undefined?r.followup:(cur.followup||'')
+    };
+    stateUpdates['/states/'+sid]=upd;
+    if(r.note){
+      notePromises.push(DB.ref('/updates/'+sid).push({status:upd.status,project:upd.project,assignee:upd.assignee,followup:upd.followup,note:r.note,ts:ts}));
+    }
+  });
+  DB.ref().update(stateUpdates).then(function(){
+    return Promise.all(notePromises);
+  }).then(function(){
+    document.getElementById('importTrackerOverlay').classList.add('hidden');
+    if(btn){btn.disabled=false;btn.textContent='Apply Import';}
+    alert('Import complete — '+_importRows.length+' sites updated.');
+    renderList();renderOv();
+  }).catch(function(err){
+    if(btn){btn.disabled=false;btn.textContent='Apply Import';}
+    alert('Import failed: '+err.message);
+  });
+}
+
+function downloadTrackerTemplate(){
+  var rows=[
+    ['Site ID','Status','Assignee','Tagged Project','Follow-up','Note'],
+    ['SITE001','progress','John Doe','b0','2026-07-15','Initial rollout started'],
+    ['SITE002','done','Jane Smith','rx','','Equipment installed'],
+    ['SITE003','blocked','','','','Waiting for access']
+  ];
+  _downloadXlsx(rows,'Tracker_Import_Template.xlsx');
 }
 
 /* Override showProjPage: inject static data BEFORE Firebase listeners fire */
