@@ -523,7 +523,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
       <button class="modal-close" onclick="document.getElementById('importTrackerOverlay').classList.add('hidden')">&times;</button>
     </div>
     <div class="modal-body">
-      <p style="margin-bottom:10px;color:#555;font-size:.84rem">Upload an Excel file to bulk-update site progress. Columns recognised: <b>Site ID, Status, Assignee, Tagged Project, Follow-up, Note</b>.</p>
+      <p style="margin-bottom:10px;color:#555;font-size:.84rem">Upload an Excel file to bulk-update site progress. Columns match the manual form: <b>Site ID · Status · Project · Assignee · Follow-up Date · Note</b>. Every row creates a history entry.</p>
       <div style="margin-bottom:12px">
         <button class="btn" onclick="downloadTrackerTemplate()">&#11015; Download Template</button>
       </div>
@@ -2073,7 +2073,7 @@ document.getElementById('importTrackerFile').addEventListener('change',function(
     var idIdx=hdr.findIndex(function(h){return h==='site id'||h==='site_id'||h==='siteid'||h==='id';});
     var stIdx=hdr.findIndex(function(h){return h.includes('status');});
     var asIdx=hdr.findIndex(function(h){return h.includes('assignee');});
-    var cpIdx=hdr.findIndex(function(h){return h.includes('tagged')||h==='project';});
+    var cpIdx=hdr.findIndex(function(h){return h.includes('tagged')||h==='project'||h==='project this update'||h.includes('relates');});
     var fuIdx=hdr.findIndex(function(h){return h.includes('follow');});
     var ntIdx=hdr.findIndex(function(h){return h.includes('note');});
     if(idIdx<0){pr.innerHTML='<span style="color:red">No "Site ID" column found. First column must be Site ID.</span>';return;}
@@ -2108,24 +2108,22 @@ function applyTrackerImport(){
   var btn=document.getElementById('importTrackerApplyBtn');
   if(btn){btn.disabled=true;btn.textContent='Importing...';}
   var stateUpdates={};
-  var notePromises=[];
+  var histPromises=[];
   var ts=Date.now();
   _importRows.forEach(function(r){
     var sid=r.site;
     var cur=states[sid]||{};
-    var upd={
-      status:r.status||cur.status||'none',
-      assignee:r.assignee!==undefined?r.assignee:(cur.assignee||''),
-      project:r.project!==undefined?r.project:(cur.project||''),
-      followup:r.followup!==undefined?r.followup:(cur.followup||'')
-    };
-    stateUpdates['/states/'+sid]=upd;
-    if(r.note){
-      notePromises.push(DB.ref('/updates/'+sid).push({status:upd.status,project:upd.project,assignee:upd.assignee,followup:upd.followup,note:r.note,ts:ts}));
-    }
+    var newStatus=r.status||cur.status||'none';
+    var newProject=r.project!==undefined?r.project:(cur.project||'');
+    var newAssignee=r.assignee!==undefined?r.assignee:(cur.assignee||'');
+    var newFollowup=r.followup!==undefined?r.followup:(cur.followup||'');
+    stateUpdates['/states/'+sid]={status:newStatus,project:newProject,assignee:newAssignee,followup:newFollowup};
+    // Always create a history entry (mirrors the Save Update button)
+    var histEntry={status:newStatus,project:newProject,assignee:newAssignee,followup:newFollowup,note:r.note||'[Bulk import]',ts:ts};
+    histPromises.push(DB.ref('/updates/'+sid).push(histEntry));
   });
   DB.ref().update(stateUpdates).then(function(){
-    return Promise.all(notePromises);
+    return Promise.all(histPromises);
   }).then(function(){
     document.getElementById('importTrackerOverlay').classList.add('hidden');
     if(btn){btn.disabled=false;btn.textContent='Apply Import';}
@@ -2138,13 +2136,38 @@ function applyTrackerImport(){
 }
 
 function downloadTrackerTemplate(){
-  var rows=[
-    ['Site ID','Status','Assignee','Tagged Project','Follow-up','Note'],
-    ['SITE001','progress','John Doe','b0','2026-07-15','Initial rollout started'],
-    ['SITE002','done','Jane Smith','rx','','Equipment installed'],
-    ['SITE003','blocked','','','','Waiting for access']
+  // Sheet 1: import data (columns match the manual form)
+  var dataRows=[
+    ['Site ID','Status','Project','Assignee','Follow-up Date','Note / Comment'],
+    // Example rows
+    ['BKL_0086','progress','b0','John Doe','2026-07-15','Rollout started, antenna installed'],
+    ['BKL_0087','done','rx','Jane Smith','','Equipment installed and tested'],
+    ['BKL_0098','blocked','b1ps','','','Waiting for site access approval'],
+    ['BKL_0146','none','','','',''],
   ];
-  _downloadXlsx(rows,'Tracker_Import_Template.xlsx');
+  // Sheet 2: valid values reference
+  var refRows=[
+    ['STATUS — valid values','','PROJECT — valid values',''],
+    ['Value to use in column B','Meaning in tracker','Value to use in column C','Meaning in tracker'],
+    ['none','No Status (or leave blank)','b0','Batch 0'],
+    ['progress','In Progress','b1ps','B1 PS'],
+    ['done','Done','b1nps','B1 NPS'],
+    ['blocked','Blocked','ct','Ch. Typo'],
+    ['review','Under Review','b2ps','B2 PS'],
+    ['','','rx','Recapex'],
+    ['','','p0','Resizing / P0'],
+    ['','','d2','D2 Recapex'],
+    ['','','all_done','All Projects Done (✓)'],
+    ['NOTES','','',''],
+    ['• Site ID must match exactly (e.g. BKL_0086)','','',''],
+    ['• Leave Status blank to keep existing status','','',''],
+    ['• Leave Project blank to keep existing tagged project','','',''],
+    ['• Every imported row creates a history entry','','',''],
+  ];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dataRows),'Import Data');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(refRows),'Valid Values');
+  XLSX.writeFile(wb,'Tracker_Import_Template.xlsx');
 }
 
 /* Override showProjPage: inject static data BEFORE Firebase listeners fire */
