@@ -541,33 +541,44 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
 
 <!-- OG OVERVIEW PAGE -->
 <div class="page hidden" id="pageOgOv">
-  <div style="padding:18px 24px 0;flex-shrink:0">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+  <div style="padding:14px 24px 0;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
       <span style="width:12px;height:12px;border-radius:50%;background:#0f766e;display:inline-block"></span>
       <span style="font-size:1.05rem;font-weight:700;color:#1a3c5e">OG — Overview</span>
-      <button class="btn btn-primary" onclick="showOgPage('sites')" style="margin-left:auto">&#128203; OG Sites Details &#8594;</button>
+      <select id="ogOvYrFilter" onchange="renderOgOverview()" style="padding:6px 8px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.8rem;background:#f8fafc;outline:none">
+        <option value="">All OG Batches</option>
+        <option value="OG25">OG 2025</option>
+        <option value="OG26">OG 2026</option>
+      </select>
+      <select id="ogOvStFilter" onchange="renderOgOverview()" style="padding:6px 8px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.8rem;background:#f8fafc;outline:none">
+        <option value="">All Status</option>
+        <option value="none">No Status</option>
+        <option value="progress">In Progress</option>
+        <option value="done">Done</option>
+        <option value="blocked">Blocked</option>
+        <option value="review">Under Review</option>
+      </select>
+      <span id="ogOvRc" style="font-size:.78rem;color:#888"></span>
+      <button class="btn btn-primary" onclick="showOgPage('sites')" style="margin-left:auto">&#128203; OG Sites Details →</button>
     </div>
     <div class="sumbar">
       <div class="sc" style="border-color:#0f766e"><div class="v" id="ogT" style="color:#0f766e">467</div><div class="l">Total OG Sites</div></div>
-      <div class="sc" style="border-color:#0e7490"><div class="v" id="ogT25" style="color:#0e7490">79</div><div class="l">OG 2025</div></div>
-      <div class="sc" style="border-color:#0f766e"><div class="v" id="ogT26" style="color:#0f766e">388</div><div class="l">OG 2026</div></div>
+      <div class="sc" style="border-color:#0e7490"><div class="v" id="ogT25" style="color:#0e7490">-</div><div class="l">OG 2025</div></div>
+      <div class="sc" style="border-color:#0f766e"><div class="v" id="ogT26" style="color:#0f766e">-</div><div class="l">OG 2026</div></div>
       <div class="sc spg"><div class="v" id="ogPg">0</div><div class="l">In Progress</div></div>
       <div class="sc sdk"><div class="v" id="ogDn">0</div><div class="l">Done</div></div>
       <div class="sc sbl"><div class="v" id="ogBl">0</div><div class="l">Blocked</div></div>
     </div>
   </div>
   <div style="padding:0 24px 24px;overflow:auto;flex:1">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-      <span style="font-size:.85rem;color:#667;font-weight:600">Site snapshot</span>
-      <span id="ogOvRc" style="font-size:.78rem;color:#888;margin-left:8px"></span>
-    </div>
     <table style="width:100%;border-collapse:collapse;font-size:.83rem">
-      <thead><tr style="background:#f1f5f9;color:#334155">
+      <thead><tr style="background:#f1f5f9;color:#334155;position:sticky;top:0">
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0;width:20px"></th>
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Site ID</th>
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Site Name</th>
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">OG Batch</th>
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Typo Contractuelle</th>
+        <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Typo Installée</th>
         <th style="padding:7px 10px;text-align:left;border-bottom:2px solid #e2e8f0">Status</th>
       </tr></thead>
       <tbody id="ogOvBody"></tbody>
@@ -596,6 +607,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
         <option value="review">Under Review</option>
       </select>
       <button class="btn" onclick="exportOgSites()">&#11015; Export Excel</button>
+      <button class="btn btn-primary" onclick="openOgImport()">&#128228; Upload Status File</button>
       <span id="ogSitesRc" style="font-size:.78rem;color:#888;margin-left:4px"></span>
     </div>
   </div>
@@ -616,6 +628,25 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
       </tr></thead>
       <tbody id="ogSitesBody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- OG IMPORT MODAL -->
+<div id="ogImportModal" class="overlay hidden" style="z-index:2000">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:520px;width:95%;box-shadow:0 8px 40px #0002;position:relative">
+    <button onclick="closeOgImport()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#667">&times;</button>
+    <h3 style="margin:0 0 8px;color:#1a3c5e;font-size:1rem">&#128228; Upload OG Status File</h3>
+    <p style="font-size:.83rem;color:#667;margin:0 0 16px">Upload an Excel file to bulk-update OG site status. Required column: <strong>Site ID</strong>. Optional: <strong>Status</strong>, <strong>Assignee</strong>, <strong>Follow-up</strong>, <strong>Note</strong>.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:.8rem;color:#166534;margin-bottom:14px">
+      Valid status values: <strong>No Status</strong> &nbsp;|&nbsp; <strong>In Progress</strong> &nbsp;|&nbsp; <strong>Done</strong> &nbsp;|&nbsp; <strong>Blocked</strong> &nbsp;|&nbsp; <strong>Under Review</strong>
+    </div>
+    <input type="file" id="ogImportFile" accept=".xlsx,.xls" style="margin-bottom:14px;font-size:.83rem">
+    <div id="ogImportPreview" style="max-height:160px;overflow:auto;font-size:.78rem;display:none;margin-bottom:14px;border:1px solid #e0e6ef;border-radius:7px;padding:8px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeOgImport()">Cancel</button>
+      <button class="btn" onclick="downloadOgImportTemplate()">&#11015; Download Template</button>
+      <button class="btn btn-primary" id="ogImportApply" onclick="applyOgImport()" disabled>&#10003; Apply Import</button>
+    </div>
   </div>
 </div>
 
