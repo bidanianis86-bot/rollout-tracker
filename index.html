@@ -4252,32 +4252,35 @@ function renderOgSites(){
   const rows=getOgSites(yrF,stF,q);
   const tbody=document.getElementById('ogSitesBody');
   if(!tbody) return;
-  tbody.innerHTML=rows.map(([sid,eq])=>{
+  tbody.innerHTML=rows.map(function([sid,eq]){
     const dispId=sid.includes('__')?sid.split('__')[0]:sid;
     const nm=eq.site_name||dispId;
     const st=ogStates[sid]?.status||'none';
-    const as=ogStates[sid]?.assignee||'';
+    const as=(ogStates[sid]?.assignee||'').replace(/"/g,'&quot;');
     const fu=ogStates[sid]?.followup||'';
     const yr=eq.og_year||'';
-    return '<tr>'
-      +'<td style="font-weight:700;font-size:.83rem;color:#1a3c5e;white-space:nowrap">'+dispId+'</td>'
-      +'<td style="color:#445;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+nm+'</td>'
-      +'<td><span style="background:'+(yr==='OG25'?'#0e7490':'#0f766e')+';color:#fff;padding:2px 7px;border-radius:9px;font-size:.75rem">'+yr+'</span></td>'
-      +'<td>'+(eq.typo_contractuelle||'')+'</td>'
-      +'<td>'+(eq.typo_installee||'')+'</td>'
-      +'<td style="color:#667;font-size:.78rem">'+(eq.batch||'')+'</td>'
-      +'<td style="color:#667">'+(eq.puissance_w||'')+'</td>'
-      +'<td style="color:#667">'+(eq.type||'')+'</td>'
-      +'<td><select onchange="updateOgStatus(''+sid+'',this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px">'
-      +'<option value="none" '+(st==='none'?'selected':'')+'>No Status</option>'
-      +'<option value="progress" '+(st==='progress'?'selected':'')+'>In Progress</option>'
-      +'<option value="done" '+(st==='done'?'selected':'')+'>Done</option>'
-      +'<option value="blocked" '+(st==='blocked'?'selected':'')+'>Blocked</option>'
-      +'<option value="review" '+(st==='review'?'selected':'')+'>Under Review</option>'
-      +'</select></td>'
-      +'<td><input type="text" value="'+as+'" onchange="updateOgAssignee(''+sid+'',this.value)" placeholder="Assignee" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 6px;width:90px"></td>'
-      +'<td><input type="date" value="'+fu+'" onchange="updateOgFollowup(''+sid+'',this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>'
-      +'</tr>';
+    const yrbg=yr==='OG25'?'#0e7490':'#0f766e';
+    return [
+      '<tr>',
+      '<td style="font-weight:700;font-size:.83rem;color:#1a3c5e;white-space:nowrap">'+dispId+'</td>',
+      '<td style="color:#445;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+nm+'</td>',
+      '<td><span style="background:'+yrbg+';color:#fff;padding:2px 7px;border-radius:9px;font-size:.75rem">'+yr+'</span></td>',
+      '<td>'+(eq.typo_contractuelle||'')+'</td>',
+      '<td>'+(eq.typo_installee||'')+'</td>',
+      '<td style="color:#667;font-size:.78rem">'+(eq.batch||'')+'</td>',
+      '<td style="color:#667">'+(eq.puissance_w||'')+'</td>',
+      '<td style="color:#667">'+(eq.type||'')+'</td>',
+      '<td><select data-sid="'+sid+'" onchange="updateOgStatus(this.dataset.sid,this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px">',
+        '<option value="none"'+(st==='none'?' selected':'')+'>No Status</option>',
+        '<option value="progress"'+(st==='progress'?' selected':'')+'>In Progress</option>',
+        '<option value="done"'+(st==='done'?' selected':'')+'>Done</option>',
+        '<option value="blocked"'+(st==='blocked'?' selected':'')+'>Blocked</option>',
+        '<option value="review"'+(st==='review'?' selected':'')+'>Under Review</option>',
+      '</select></td>',
+      '<td><input type="text" value="'+as+'" data-sid="'+sid+'" onchange="updateOgAssignee(this.dataset.sid,this.value)" placeholder="Assignee" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 6px;width:90px"></td>',
+      '<td><input type="date" value="'+fu+'" data-sid="'+sid+'" onchange="updateOgFollowup(this.dataset.sid,this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>',
+      '</tr>'
+    ].join('');
   }).join('');
   const rc=document.getElementById('ogSitesRc');
   if(rc) rc.textContent=rows.length+' sites shown';
