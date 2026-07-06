@@ -4324,5 +4324,125 @@ function exportOgSites(){
   _downloadXlsx(data,'OG_Sites_Export.xlsx');
 }
 
+
+/* ══════════════════════════════════════════════════════
+   OG IMPORT FUNCTIONS
+══════════════════════════════════════════════════════ */
+
+function openOgImport(){
+  document.getElementById('ogImportModal').classList.remove('hidden');
+  document.getElementById('ogImportFile').value='';
+  document.getElementById('ogImportPreview').style.display='none';
+  document.getElementById('ogImportApply').disabled=true;
+  window._ogImportData=null;
+}
+
+function closeOgImport(){
+  document.getElementById('ogImportModal').classList.add('hidden');
+}
+
+function downloadOgImportTemplate(){
+  // Sheet 1: Import Data — same structure as main tracker template
+  var hdr=['Site ID','Status','OG Batch','Assignee','Follow-up Date','Note / Comment'];
+  var hint=['\u2190 paste Site IDs here','\u2190 see Valid Values tab','\u2190 see Valid Values tab','\u2190 team member name','\u2190 YYYY-MM-DD','\u2190 optional note'];
+  var rows=[hdr, hint];
+  Object.keys(STATIC_EQUIP_OG_VALS).forEach(function(sid){
+    var eq=STATIC_EQUIP_OG_VALS[sid];
+    var dispId=sid.includes('__')?sid.split('__')[0]:sid;
+    rows.push([dispId,'',eq.og_year||'','','','']);
+  });
+  var ws1=XLSX.utils.aoa_to_sheet(rows);
+  ws1['!cols']=[{wch:20},{wch:12},{wch:10},{wch:18},{wch:16},{wch:30}];
+  // Sheet 2: Valid Values reference
+  var ref=[
+    ['STATUS \u2014 Column B',null,null,'OG BATCH \u2014 Column C',null],
+    ['Value to type','Meaning',null,'Value to type','Meaning'],
+    ['none','No Status (or leave blank)',null,'OG25','OG 2025 (81 sites)'],
+    ['progress','In Progress',null,'OG26','OG 2026 (389 sites)'],
+    ['done','Done',null,null,null],
+    ['blocked','Blocked',null,null,null],
+    ['review','Under Review',null,null,null],
+  ];
+  var ws2=XLSX.utils.aoa_to_sheet(ref);
+  ws2['!cols']=[{wch:16},{wch:24},{wch:4},{wch:14},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws1,'Import Data');
+  XLSX.utils.book_append_sheet(wb,ws2,'Valid Values');
+  XLSX.writeFile(wb,'OG_Import_Template.xlsx');
+}
+
+function applyOgImport(){
+  var data=window._ogImportData;
+  if(!data||!data.length||!DB) return;
+  var STATUS_MAP={
+    'no status':'none','none':'none','':'' ,
+    'in progress':'progress','progress':'progress',
+    'done':'done',
+    'blocked':'blocked',
+    'under review':'review','review':'review'
+  };
+  var updates={};
+  var count=0;
+  data.forEach(function(row){
+    var sid=(row['Site ID']||row['site id']||row['SITE ID']||'').toString().trim();
+    var note=(row['Note / Comment']||row['Note']||row['note']||'').toString().trim();
+    if(!sid) return;
+    // Try to match to known OG site (handle __OG26 suffixes)
+    var match=sid;
+    if(!STATIC_EQUIP_OG_VALS[match]){
+      // try with __OG26 suffix
+      match=sid+'__OG26';
+      if(!STATIC_EQUIP_OG_VALS[match]) match=null;
+    }
+    if(!match) return;
+    var st=(row['Status']||row['status']||row['STATUS']||'').toString().trim().toLowerCase();
+    var mapped=STATUS_MAP.hasOwnProperty(st)?STATUS_MAP[st]:null;
+    if(mapped!==null && mapped!==''){
+      updates['/og_states/'+match+'/status']=mapped;
+    } else if(mapped===''){
+      updates['/og_states/'+match+'/status']=null;
+    }
+    var as=(row['Assignee']||row['assignee']||'').toString().trim();
+    if(as) updates['/og_states/'+match+'/assignee']=as;
+    var fu=(row['Follow-up Date']||row['Follow-up (YYYY-MM-DD)']||row['Follow-up']||row['follow-up']||row['followup']||'').toString().trim();
+    if(fu) updates['/og_states/'+match+'/followup']=fu;
+    count++;
+  });
+  if(!count){ alert('No matching OG site IDs found in the file.'); return; }
+  DB.ref('/og_states').update(updates).then(function(){
+    alert(count+' OG sites updated successfully!');
+    closeOgImport();
+  }).catch(function(e){ alert('Firebase error: '+e.message); });
+}
+
+// File change handler — wire it up after DOM loads
+document.addEventListener('DOMContentLoaded', function(){
+  var inp=document.getElementById('ogImportFile');
+  if(inp) inp.addEventListener('change', function(e){
+    var file=e.target.files[0];
+    if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var json=XLSX.utils.sheet_to_json(ws);
+        window._ogImportData=json;
+        var prev=document.getElementById('ogImportPreview');
+        var valid=json.filter(function(r){
+          var sid=(r['Site ID']||r['site id']||r['SITE ID']||'').toString().trim();
+          return sid && (STATIC_EQUIP_OG_VALS[sid]||STATIC_EQUIP_OG_VALS[sid+'__OG26']);
+        }).length;
+        prev.style.display='block';
+        prev.innerHTML='<b>'+json.length+' rows found</b>, <b style="color:#0f766e">'+valid+' matched OG sites</b>.<br><small>Ready to import status updates.</small>';
+        document.getElementById('ogImportApply').disabled=(valid===0);
+      }catch(err){
+        alert('Error reading file: '+err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+});
+
 </script>
 </
