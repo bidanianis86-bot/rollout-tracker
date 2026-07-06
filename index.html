@@ -247,7 +247,8 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
     <button class="nav-tab" id="tabRx"   onclick="showProjPage('rx')"  ><span class="proj-badge" style="background:#78350f"></span>Recapex</button>
     <button class="nav-tab" id="tabP0"   onclick="showProjPage('p0')"  ><span class="proj-badge" style="background:#dc2626"></span>P0</button>
     <button class="nav-tab" id="tabD2"   onclick="showProjPage('d2')"  ><span class="proj-badge" style="background:#4c1d95"></span>D2 Recap</button>
-    <button class="nav-tab" id="tabOg"  onclick="showProjPage('og')"><span class="proj-badge" style="background:#0f766e"></span>OG</button>
+    <button class="nav-tab" id="tabOgOv" onclick="showOgPage('ov')"><span class="proj-badge" style="background:#0f766e"></span>OG Overview</button>
+    <button class="nav-tab" id="tabOgSites" onclick="showOgPage('sites')"><span class="proj-badge" style="background:#0f766e"></span>OG Sites</button>
   </div>
   <div class="user-bar">
     <div class="conn-dot" id="connDot" title="Connecting…"></div>
@@ -298,7 +299,6 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
           <option value="b2ps">Tagged: B2 PS</option><option value="rx">Tagged: Recapex</option>
           <option value="p0">Tagged: P0</option>
           <option value="d2">Tagged: D2 Recapex</option>
-          <option value="og">Tagged: OG</option>
           <option value="all_done">&#10003; All Projects Done</option>
         </select>
         <select id="ovD2" onchange="renderOv()">
@@ -321,7 +321,6 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
         <div class="sc srx"><div class="v" id="oRx">-</div><div class="l">Recapex</div></div>
         <div class="sc sp0"><div class="v" id="oP0">-</div><div class="l">P0</div></div>
         <div class="sc" style="border-color:#7c3aed"><div class="v" id="oD2" style="color:#7c3aed">-</div><div class="l">D2 Recap</div></div>
-        <div class="sc" style="border-color:#0f766e"><div class="v" id="oOg" style="color:#0f766e">-</div><div class="l">OG</div></div>
         <div class="sc spg"><div class="v" id="oPg">-</div><div class="l">In Progress</div></div>
         <div class="sc sdk"><div class="v" id="oDn">-</div><div class="l">Done</div></div>
         <div class="sc sbl"><div class="v" id="oBl">-</div><div class="l">Blocked</div></div>
@@ -453,11 +452,6 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
       <option value="">All Status</option>
       <option value="none">No Status</option><option value="progress">In Progress</option>
       <option value="done">Done</option><option value="blocked">Blocked</option><option value="review">Under Review</option>
-    </select>
-    <select id="pjOgYr" onchange="renderProjTable()" style="display:none;padding:6px 8px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.8rem;background:#f8fafc;outline:none">
-      <option value="">All Years</option>
-      <option value="OG25">OG 2025</option>
-      <option value="OG26">OG 2026</option>
     </select>
     <button class="btn btn-primary" onclick="openProjUpload()">&#128228; Upload Equipment File</button>
     <button class="btn" onclick="exportProjPage()">&#11015; Export Excel</button>
@@ -658,6 +652,7 @@ function rebuildSites(){
   // Also include Excel-only sites from static equip data
   var seen=new Set(SITES.map(function(r){return r[0];}));
   ALL_PROJS.forEach(function(p){
+    if(p.key==='og')return;
     var v=STATIC_EQUIP[p.key];
     if(!v)return;
     Object.keys(v.vals).forEach(function(sid){
@@ -666,7 +661,7 @@ function rebuildSites(){
       var row=new Array(21).fill('');
       row[0]=sid;
       row[p.idx]=1;
-      if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}else if(SITE_EXTRA_OG&&SITE_EXTRA_OG[sid]){var ex=SITE_EXTRA_OG[sid];if(!row[1])row[1]=ex[0];}
+      if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}
       SITES.push(row);
     });
   });
@@ -756,7 +751,6 @@ function renderOv(){
   setV('oDn',rows.filter(r=>(states[r[0]]?.status||'none')==='done').length);
   setV('oBl',rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length);
   setV('oD2',rows.filter(r=>r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0]))).length);
-  setV('oOg',rows.filter(r=>r[19]||(STATIC_PROJ_SITES.og&&STATIC_PROJ_SITES.og.has(r[0]))).length);
   const rcEl=document.getElementById('ovRc');if(rcEl)rcEl.textContent=rows.length+' sites shown';
   const nr=document.getElementById('ovNr');if(nr)nr.style.display=rows.length?'none':'block';
   const tbody=document.getElementById('ovBody');
@@ -1218,7 +1212,6 @@ const ALL_PROJS=[
   {key:'rx',   label:'Recapex',    idx:16, color:'#78350f', tabId:'tabRx'},
   {key:'p0',   label:'Resizing',         idx:14, color:'#dc2626', tabId:'tabP0'},
   {key:'d2',   label:'D2 Recapex', idx:18, color:'#4c1d95', tabId:'tabD2'},
-  {key:'og',   label:'OG',          idx:19, color:'#0f766e', tabId:'tabOg'},
 ];
 let curProjKey=null;
 const projEquipMeta={}; // key -> [{col_key,display_name,order}]
@@ -3779,6 +3772,7 @@ Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Obje
 (function(){
   var seen=new Set(Object.keys(BASE_MAP));
   ALL_PROJS.forEach(function(p){
+    if(p.key==='og')return;
     var v=STATIC_EQUIP[p.key];
     if(!v)return;
     Object.keys(v.vals).forEach(function(sid){
@@ -3787,7 +3781,7 @@ Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Obje
       var row=new Array(21).fill('');
       row[0]=sid;
       row[p.idx]=1;
-      if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}else if(SITE_EXTRA_OG&&SITE_EXTRA_OG[sid]){var ex=SITE_EXTRA_OG[sid];if(!row[1])row[1]=ex[0];}
+      if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}
       SITES.push(row);
       BASE_MAP[sid]=row;
     });
@@ -3836,7 +3830,7 @@ function exportOv(){
     if(d2f==='1'&&!r[18]&&!(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))return false;
     return true;
   });
-  var hdr=['Site ID','Site Name','Region','Zone','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','P0','D2 Recap','OG','Status','Assignee','Tagged Project','Follow-up'];
+  var hdr=['Site ID','Site Name','Region','Zone','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','P0','D2 Recap','Status','Assignee','Tagged Project','Follow-up'];
   var rows=[hdr];
   filtered.forEach(function(r){
     var s=states[r[0]]||{};
@@ -3850,7 +3844,6 @@ function exportOv(){
       (r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))?'Yes':'',
       (r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))?'Yes':'',
       (r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))?'Yes':'',
-      (r[19]||(STATIC_PROJ_SITES.og&&STATIC_PROJ_SITES.og.has(r[0])))?'Yes':'',
       STLBL[s.status||'none']||'',
       s.assignee||'',
       PJ_LABELS[s.project]||s.project||'',
@@ -4040,19 +4033,15 @@ function downloadTrackerTemplate(){
   XLSX.writeFile(wb,'Tracker_Import_Template.xlsx');
 }
 
-/* Override showProjPage: inject static data BEFORE Firebase listeners fire */
+/* Inject static equip data before Firebase listeners */
 const _origShowProjPage = showProjPage;
 showProjPage = function(key) {
-  const ogYrEl = document.getElementById('pjOgYr');
-  if(ogYrEl) { ogYrEl.style.display = key==='og' ? '' : 'none'; ogYrEl.value=''; }
   if(STATIC_EQUIP[key]) {
-    // Force static data — skip Firebase equip listeners for this key
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
     projEquipVals[key] = STATIC_EQUIP[key].vals;
-    projListeners.add(key); // prevent Firebase equip listener being attached
+    projListeners.add(key);
   }
   _origShowProjPage(key);
-  // Re-apply after Firebase call (in case listeners already fired)
   if(STATIC_EQUIP[key]) {
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
     projEquipVals[key] = STATIC_EQUIP[key].vals;
@@ -4061,6 +4050,151 @@ showProjPage = function(key) {
   }
 };
 
+/* ══ OG PAGES ══ */
+let ogStates = {};
+let ogStateListener = false;
+let curOgView = 'ov'; // 'ov' or 'sites'
+
+function showOgPage(view) {
+  curOgView = view;
+  // Hide all main pages
+  ['pageOv','pageTr','pagePROJ','pageOgOv','pageOgSites'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.add('hidden');
+  });
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  if(view==='ov'){
+    document.getElementById('pageOgOv').classList.remove('hidden');
+    const t=document.getElementById('tabOgOv'); if(t) t.classList.add('active');
+    renderOgOverview();
+  } else {
+    document.getElementById('pageOgSites').classList.remove('hidden');
+    const t=document.getElementById('tabOgSites'); if(t) t.classList.add('active');
+    renderOgSites();
+  }
+  // Attach Firebase listener for og_states once
+  if(DB && !ogStateListener){
+    ogStateListener=true;
+    DB.ref('/og_states').on('value', snap=>{
+      ogStates = snap.val()||{};
+      if(curOgView==='ov') renderOgOverview();
+      else renderOgSites();
+    });
+  }
+}
+
+const OG_STLBL={none:'No Status',progress:'In Progress',done:'Done',blocked:'Blocked',review:'Under Review'};
+
+function getOgSites(yrFilter, stFilter, q){
+  return Object.entries(STATIC_EQUIP_OG_VALS).filter(([sid, eq])=>{
+    if(yrFilter && eq.og_year!==yrFilter) return false;
+    const st = ogStates[sid]?.status||'none';
+    if(stFilter && st!==stFilter) return false;
+    if(q){
+      const qq=q.toLowerCase();
+      const nm=(SITE_EXTRA_OG[sid]||[sid])[0]||sid;
+      if(!sid.toLowerCase().includes(qq) && !nm.toLowerCase().includes(qq)) return false;
+    }
+    return true;
+  });
+}
+
+function renderOgOverview(){
+  const all = Object.entries(STATIC_EQUIP_OG_VALS);
+  const og25 = all.filter(([,eq])=>eq.og_year==='OG25');
+  const og26 = all.filter(([,eq])=>eq.og_year==='OG26');
+  const pg = all.filter(([sid])=>(ogStates[sid]?.status||'none')==='progress');
+  const dn = all.filter(([sid])=>(ogStates[sid]?.status||'none')==='done');
+  const bl = all.filter(([sid])=>(ogStates[sid]?.status||'none')==='blocked');
+  const sv=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
+  sv('ogT',all.length); sv('ogT25',og25.length); sv('ogT26',og26.length);
+  sv('ogPg',pg.length); sv('ogDn',dn.length); sv('ogBl',bl.length);
+
+  // Build overview table
+  const tbody=document.getElementById('ogOvBody');
+  if(!tbody) return;
+  const rows=all.slice(0,50); // show first 50 in overview
+  tbody.innerHTML=rows.map(([sid,eq])=>{
+    const nm=(SITE_EXTRA_OG[sid]||[sid])[0]||sid;
+    const st=ogStates[sid]?.status||'none';
+    const yr=eq.og_year||'';
+    return `<tr onclick="showOgPage('sites')" style="cursor:pointer">
+      <td><span class="st-dot sd-${st}"></span></td>
+      <td style="font-weight:700;font-size:.83rem;color:#1a3c5e">${sid}</td>
+      <td>${nm!==sid?nm:'—'}</td>
+      <td><span style="background:${yr==='OG25'?'#0e7490':'#0f766e'};color:#fff;padding:2px 7px;border-radius:9px;font-size:.75rem">${yr}</span></td>
+      <td>${eq.typo_contractuelle||'—'}</td>
+      <td><span class="st-lbl sl-${st}">${OG_STLBL[st]||st}</span></td>
+    </tr>`;
+  }).join('');
+  const rc=document.getElementById('ogOvRc');
+  if(rc) rc.textContent=all.length+' sites total — showing first 50 · click to see all';
+}
+
+function renderOgSites(){
+  const q=document.getElementById('ogQ')?.value||'';
+  const yrF=document.getElementById('ogYrFilter')?.value||'';
+  const stF=document.getElementById('ogStFilter')?.value||'';
+  const rows=getOgSites(yrF,stF,q);
+  const tbody=document.getElementById('ogSitesBody');
+  if(!tbody) return;
+  tbody.innerHTML=rows.map(([sid,eq])=>{
+    const nm=(SITE_EXTRA_OG[sid]||[sid])[0]||sid;
+    const st=ogStates[sid]?.status||'none';
+    const as=ogStates[sid]?.assignee||'';
+    const fu=ogStates[sid]?.followup||'';
+    const yr=eq.og_year||'';
+    return `<tr>
+      <td style="font-weight:700;font-size:.83rem;color:#1a3c5e">${sid}</td>
+      <td>${nm!==sid?nm:'—'}</td>
+      <td><span style="background:${yr==='OG25'?'#0e7490':'#0f766e'};color:#fff;padding:2px 7px;border-radius:9px;font-size:.75rem">${yr}</span></td>
+      <td>${eq.typo_contractuelle||'—'}</td>
+      <td>${eq.typo_installee||'—'}</td>
+      <td>${eq.batch||'—'}</td>
+      <td>${eq.puissance_w||'—'}</td>
+      <td>${eq.type||'—'}</td>
+      <td>
+        <select onchange="updateOgStatus('${sid}',this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px">
+          <option value="none" ${st==='none'?'selected':''}>No Status</option>
+          <option value="progress" ${st==='progress'?'selected':''}>In Progress</option>
+          <option value="done" ${st==='done'?'selected':''}>Done</option>
+          <option value="blocked" ${st==='blocked'?'selected':''}>Blocked</option>
+          <option value="review" ${st==='review'?'selected':''}>Under Review</option>
+        </select>
+      </td>
+      <td><input type="text" value="${as}" onchange="updateOgAssignee('${sid}',this.value)" placeholder="Assignee" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 6px;width:100px"></td>
+      <td><input type="date" value="${fu}" onchange="updateOgFollowup('${sid}',this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>
+    </tr>`;
+  }).join('');
+  const rc=document.getElementById('ogSitesRc');
+  if(rc) rc.textContent=rows.length+' sites shown';
+}
+
+function updateOgStatus(sid,val){
+  if(!DB) return;
+  DB.ref('/og_states/'+sid+'/status').set(val==='none'?null:val);
+}
+function updateOgAssignee(sid,val){
+  if(!DB) return;
+  DB.ref('/og_states/'+sid+'/assignee').set(val||null);
+}
+function updateOgFollowup(sid,val){
+  if(!DB) return;
+  DB.ref('/og_states/'+sid+'/followup').set(val||null);
+}
+
+function exportOgSites(){
+  const yrF=document.getElementById('ogYrFilter')?.value||'';
+  const stF=document.getElementById('ogStFilter')?.value||'';
+  const q=document.getElementById('ogQ')?.value||'';
+  const rows=getOgSites(yrF,stF,q);
+  const hdr=['Site ID','Site Name','OG Batch','Typo Contractuelle','Typo Installée','Batch','Puissance (W)','Type','Status','Assignee','Follow-up'];
+  const data=[hdr].concat(rows.map(([sid,eq])=>{
+    const nm=(SITE_EXTRA_OG[sid]||[sid])[0]||sid;
+    const s=ogStates[sid]||{};
+    return [sid,nm!==sid?nm:'',eq.og_year||'',eq.typo_contractuelle||'',eq.typo_installee||'',eq.batch||'',eq.puissance_w||'',eq.type||'',OG_STLBL[s.status||'none']||'',s.assignee||'',s.followup||''];
+  }));
+  _downloadXlsx(data,'OG_Sites_Export.xlsx');
+}
+
 </script>
-</body>
-</html>
+</
