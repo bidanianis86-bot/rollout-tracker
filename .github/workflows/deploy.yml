@@ -14,10 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to gh-pages branch
+      - name: Prepare deploy folder
+        run: |
+          mkdir -p /tmp/site
+          cp index.html /tmp/site/
+
+      - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
+          publish_dir: /tmp/site
           publish_branch: gh-pages
-          exclude_assets: '.github,push.bat'
