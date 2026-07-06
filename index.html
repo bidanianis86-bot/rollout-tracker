@@ -232,6 +232,14 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
 .summary-card .val{font-size:.82rem;font-weight:700;color:#1a3c5e}
 
 </style></head><body>
+<div id="__dbg" style="position:fixed;bottom:10px;right:10px;background:#1e3a5f;color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;font-family:monospace;z-index:99999;max-width:320px;line-height:1.6">
+<b>Debug:</b> <span id="__dbg_txt">Script loading...</span></div>
+<script>
+function __dbg(msg){ var el=document.getElementById('__dbg_txt'); if(el) el.textContent=msg; console.log('DBG:',msg); }
+window.onerror = function(msg,src,line){ __dbg('JS ERROR line '+line+': '+msg); };
+__dbg('DOM ready, awaiting script...');
+</script>
+
 
 <header>
   <h1>&#128205; Rollout Tracker 2026 &mdash; Senegal</h1>
@@ -707,6 +715,7 @@ function initFirebase(cfg){
     setConn(false);
     console.error('Firebase init error:',e);
   }
+  __dbg('Calling showApp()...');
   showApp();
 }
 
@@ -779,6 +788,7 @@ function rebuildSites(){
 }
 
 function showApp(){
+  __dbg('showApp running - hiding spinner...');
   document.getElementById('ovLoading').style.display='none';
   const oc=document.getElementById('ovContent');
   oc.style.display='flex'; oc.style.flexDirection='column';
@@ -3902,6 +3912,7 @@ Object.entries(STATIC_EQUIP).forEach(([k,v])=>{STATIC_PROJ_SITES[k]=new Set(Obje
 })();
 
 // Start app after all static data is ready
+__dbg('Startup block reached - checking Firebase config...');
 const savedCfg=localStorage.getItem('fb_config');
 try{
   const cfg=savedCfg?JSON.parse(savedCfg):DEFAULT_FB_CFG;
