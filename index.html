@@ -4409,7 +4409,7 @@ function applyOgImport(){
     count++;
   });
   if(!count){ alert('No matching OG site IDs found in the file.'); return; }
-  DB.ref('/og_states').update(updates).then(function(){
+  DB.ref().update(updates).then(function(){
     alert(count+' OG sites updated successfully!');
     closeOgImport();
   }).catch(function(e){ alert('Firebase error: '+e.message); });
