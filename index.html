@@ -317,7 +317,7 @@ __dbg('DOM ready, awaiting script...');
         <button class="btn" onclick="exportOv()">&#11015; Export Excel</button>
         <button class="btn btn-primary" onclick="openUpload()">&#128228; Upload Project File</button>
         <button class="btn" onclick="openManageCols()">&#9881; Columns</button>
-        <button class="btn" onclick="openAddSite()" style="background:#1a3c5e;color:#fff;border-color:#1a3c5e">&#43; Add Site</button>
+        <button class="btn" onclick="openAddSite(curProjKey)" style="background:#1a3c5e;color:#fff;border-color:#1a3c5e">&#43; Add Site</button>
         <span class="rc" id="ovRc"></span>
       </div>
       <div class="sumbar">
@@ -4469,7 +4469,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 /* ══ ADD SITE (regular) ══ */
-function openAddSite(){
+var _addSiteActiveProjKey = null;
+function openAddSite(projKey){
+  _addSiteActiveProjKey = projKey||null;
   document.getElementById('asSiteId').value='';
   document.getElementById('asSiteName').value='';
   document.getElementById('asSiteRegion').value='';
@@ -4477,8 +4479,46 @@ function openAddSite(){
   document.getElementById('asSiteEnergy').value='';
   document.getElementById('asSiteErr').style.display='none';
   document.querySelectorAll('#asProjChecks input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  // Auto-check the current project and show its equipment fields
+  if(projKey){
+    var cb=document.querySelector('#asProjChecks input[value="'+projKey+'"]');
+    if(cb){ cb.checked=true; }
+    _renderEquipFields(projKey);
+  } else {
+    document.getElementById('asEquipSection').style.display='none';
+    document.getElementById('asEquipFields').innerHTML='';
+  }
   document.getElementById('addSiteModal').classList.remove('hidden');
 }
+function _renderEquipFields(projKey){
+  var meta = (STATIC_EQUIP[projKey]&&STATIC_EQUIP[projKey].meta)||[];
+  var sec = document.getElementById('asEquipSection');
+  var fld = document.getElementById('asEquipFields');
+  var lbl = document.getElementById('asEquipProjLabel');
+  if(!meta||meta.length===0){ sec.style.display='none'; return; }
+  var proj = ALL_PROJS.find(function(p){return p.key===projKey;});
+  if(lbl) lbl.textContent = (proj?proj.label:'') + ' — ' + meta.length + ' columns';
+  fld.innerHTML = meta.map(function(col){
+    var display = col.display_name||col.col_key||'';
+    var key = col.col_key||'';
+    return '<div><label style="font-size:.72rem;font-weight:600;color:#334155;display:block;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="'+display+'">'+display+'</label>'+
+      '<input data-equip-col="'+key+'" style="width:100%;padding:5px 8px;border:1px solid #c0cfe0;border-radius:6px;font-size:.8rem;box-sizing:border-box" placeholder="'+display+'"></div>';
+  }).join('');
+  sec.style.display='block';
+}
+// Wire up project checkboxes to show equipment fields for the clicked one
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('#asProjChecks input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change',function(){
+      if(cb.checked){ _addSiteActiveProjKey=cb.value; _renderEquipFields(cb.value); }
+      else if(_addSiteActiveProjKey===cb.value){
+        document.getElementById('asEquipSection').style.display='none';
+        document.getElementById('asEquipFields').innerHTML='';
+        _addSiteActiveProjKey=null;
+      }
+    });
+  });
+});
 function closeAddSite(){ document.getElementById('addSiteModal').classList.add('hidden'); }
 function saveNewSite(){
   var sid=document.getElementById('asSiteId').value.trim();
@@ -4489,7 +4529,7 @@ function saveNewSite(){
   if(!DB){ err.textContent='Firebase not connected. Please reload.'; err.style.display='block'; return; }
   var projects={};
   document.querySelectorAll('#asProjChecks input[type=checkbox]:checked').forEach(function(cb){ projects[cb.value]=1; });
-  var data={
+  var siteData={
     name: document.getElementById('asSiteName').value.trim(),
     region: document.getElementById('asSiteRegion').value.trim(),
     zone: document.getElementById('asSiteZone').value.trim(),
@@ -4498,8 +4538,26 @@ function saveNewSite(){
     source: 'manual',
     added_at: Date.now()
   };
-  DB.ref('/custom_sites/'+sid).set(data).then(function(){
+  // Collect equipment fields for active project
+  var updates = {};
+  updates['/custom_sites/'+sid] = siteData;
+  if(_addSiteActiveProjKey){
+    var equip={};
+    document.querySelectorAll('#asEquipFields input[data-equip-col]').forEach(function(inp){
+      var v=inp.value.trim();
+      if(v) equip[inp.getAttribute('data-equip-col')]=v;
+    });
+    if(Object.keys(equip).length>0){
+      updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid]=equip;
+    }
+  }
+  DB.ref().update(updates).then(function(){
     closeAddSite();
+    // Merge into local projEquipVals so it appears immediately
+    if(_addSiteActiveProjKey && updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid]){
+      if(!projEquipVals[_addSiteActiveProjKey]) projEquipVals[_addSiteActiveProjKey]={};
+      projEquipVals[_addSiteActiveProjKey][sid]=updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid];
+    }
     alert('Site '+sid+' added successfully!');
   }).catch(function(e){ err.textContent='Firebase error: '+e.message; err.style.display='block'; });
 }
@@ -4574,6 +4632,12 @@ function saveNewOgSite(){
         <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="rx"> Recapex</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="p0"> P0</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="d2"> D2 Recap</label>
+      </div>
+    </div>
+    <div id="asEquipSection" style="display:none;margin-bottom:14px">
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:4px">
+        <label style="font-size:.78rem;font-weight:700;color:#1a3c5e;display:block;margin-bottom:10px">&#9881; Equipment Details — <span id="asEquipProjLabel" style="font-weight:400;color:#667"></span></label>
+        <div id="asEquipFields" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
       </div>
     </div>
     <div id="asSiteErr" style="color:#ef4444;font-size:.8rem;display:none;margin-bottom:10px"></div>
