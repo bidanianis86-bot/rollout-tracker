@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: OG Sites header blue, batch year swap, Firebase import fix, Recapex 294 sites" --allow-empty
+git commit -m "feat: Add Site + Add OG Site modals, project flags, og_custom_sites listener, blue OG header, batch year fix" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.

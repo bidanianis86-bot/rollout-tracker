@@ -349,7 +349,10 @@ __dbg('DOM ready, awaiting script...');
   <div class="layout">
     <div class="sidebar">
       <div class="sb-head">
-        <input id="trQ" placeholder="&#128269; Search site ID or name…" oninput="renderList()">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input id="trQ" placeholder="&#128269; Search site ID or name…" oninput="renderList()" style="flex:1">
+          <button class="btn btn-primary" onclick="openAddSite()" style="white-space:nowrap;padding:5px 10px;font-size:.78rem">&#43; Add Site</button>
+        </div>
         <div class="sb-filters">
           <select id="trSt" onchange="renderList()">
             <option value="">All Status</option>
@@ -616,6 +619,7 @@ __dbg('DOM ready, awaiting script...');
       </select>
       <button class="btn" onclick="exportOgSites()">&#11015; Export Excel</button>
       <button class="btn btn-primary" onclick="openOgImport()">&#128228; Upload Status File</button>
+      <button class="btn" onclick="openAddOgSite()" style="background:#0f766e;color:#fff;border-color:#0f766e">&#43; Add OG Site</button>
       <span id="ogSitesRc" style="font-size:.78rem;color:#888;margin-left:4px"></span>
     </div>
   </div>
@@ -758,6 +762,12 @@ function listenData(){
     customSites=snap.val()||{};
     rebuildSites(); renderOv(); renderList();
   });
+  // Listen to OG custom sites
+  DB.ref('/og_custom_sites').on('value', snap=>{
+    ogCustomSites=snap.val()||{};
+    if(curOgView==='ov') renderOgOverview();
+    else renderOgSites();
+  });
   // Connection state
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
 }
@@ -766,7 +776,12 @@ function rebuildSites(){
   SITES=[...BASE_SITES];
   Object.entries(customSites).forEach(([sid,r])=>{
     if(!BASE_MAP[sid]){
-      SITES.push([sid,r.name||'',r.region||'',r.zone||'',0,0,0,0,0,1,r.energy||'','','','',0,'',0,'']);
+      var row=[sid,r.name||'',r.region||'',r.zone||'',0,0,0,0,0,0,r.energy||'','','','',0,'',0,'',0,'',''];
+      var pjKeys={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18};
+      var cnt=0;
+      if(r.projects){Object.entries(r.projects).forEach(function([pk,v]){if(v&&pjKeys[pk]!==undefined){row[pjKeys[pk]]=1;cnt++;}});}
+      row[9]=cnt||1;
+      SITES.push(row);
     }
   });
   // Also include Excel-only sites from static equip data
@@ -4176,6 +4191,7 @@ showProjPage = function(key) {
 
 /* ══ OG PAGES ══ */
 let ogStates = {};
+let ogCustomSites = {};
 let ogStateListener = false;
 let curOgView = 'ov'; // 'ov' or 'sites'
 
@@ -4209,7 +4225,12 @@ function showOgPage(view) {
 const OG_STLBL={none:'No Status',progress:'In Progress',done:'Done',blocked:'Blocked',review:'Under Review'};
 
 function getOgSites(yrFilter, stFilter, q){
-  return Object.entries(STATIC_EQUIP_OG_VALS).filter(([sid, eq])=>{
+  // Merge static OG vals with custom-added OG sites
+  var allOg = Object.assign({}, STATIC_EQUIP_OG_VALS);
+  Object.entries(ogCustomSites).forEach(function([sid,r]){
+    if(!allOg[sid]) allOg[sid] = {og_year:r.og_year||'OG26', typo_contractuelle:r.typo_contractuelle||'', typo_installee:r.typo_installee||'', batch:r.batch||'', puissance_w:r.puissance_w||'', type:r.type||'', site_name:r.site_name||sid};
+  });
+  return Object.entries(allOg).filter(([sid, eq])=>{
     if(yrFilter && eq.og_year!==yrFilter) return false;
     const st = ogStates[sid]?.status||'none';
     if(stFilter && st!==stFilter) return false;
@@ -4444,5 +4465,195 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 
+
+/* ══ ADD SITE (regular) ══ */
+function openAddSite(){
+  document.getElementById('asSiteId').value='';
+  document.getElementById('asSiteName').value='';
+  document.getElementById('asSiteRegion').value='';
+  document.getElementById('asSiteZone').value='';
+  document.getElementById('asSiteEnergy').value='';
+  document.getElementById('asSiteErr').style.display='none';
+  document.querySelectorAll('#asProjChecks input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+  document.getElementById('addSiteModal').classList.remove('hidden');
+}
+function closeAddSite(){ document.getElementById('addSiteModal').classList.add('hidden'); }
+function saveNewSite(){
+  var sid=document.getElementById('asSiteId').value.trim();
+  var err=document.getElementById('asSiteErr');
+  err.style.display='none';
+  if(!sid){ err.textContent='Site ID is required.'; err.style.display='block'; return; }
+  if(BASE_MAP[sid]||customSites[sid]){ err.textContent='Site ID already exists in the tracker.'; err.style.display='block'; return; }
+  if(!DB){ err.textContent='Firebase not connected. Please reload.'; err.style.display='block'; return; }
+  var projects={};
+  document.querySelectorAll('#asProjChecks input[type=checkbox]:checked').forEach(function(cb){ projects[cb.value]=1; });
+  var data={
+    name: document.getElementById('asSiteName').value.trim(),
+    region: document.getElementById('asSiteRegion').value.trim(),
+    zone: document.getElementById('asSiteZone').value.trim(),
+    energy: document.getElementById('asSiteEnergy').value.trim(),
+    projects: projects,
+    source: 'manual',
+    added_at: Date.now()
+  };
+  DB.ref('/custom_sites/'+sid).set(data).then(function(){
+    closeAddSite();
+    alert('Site '+sid+' added successfully!');
+  }).catch(function(e){ err.textContent='Firebase error: '+e.message; err.style.display='block'; });
+}
+
+/* ══ ADD OG SITE ══ */
+function openAddOgSite(){
+  document.getElementById('aoSiteId').value='';
+  document.getElementById('aoSiteName').value='';
+  document.getElementById('aoSiteErr').style.display='none';
+  document.getElementById('addOgSiteModal').classList.remove('hidden');
+}
+function closeAddOgSite(){ document.getElementById('addOgSiteModal').classList.add('hidden'); }
+function saveNewOgSite(){
+  var sid=document.getElementById('aoSiteId').value.trim();
+  var err=document.getElementById('aoSiteErr');
+  err.style.display='none';
+  if(!sid){ err.textContent='Site ID is required.'; err.style.display='block'; return; }
+  if(STATIC_EQUIP_OG_VALS[sid]||ogCustomSites[sid]){ err.textContent='Site ID already exists in OG Sites.'; err.style.display='block'; return; }
+  if(!DB){ err.textContent='Firebase not connected. Please reload.'; err.style.display='block'; return; }
+  var data={
+    site_name: document.getElementById('aoSiteName').value.trim()||sid,
+    og_year: document.getElementById('aoOgYear').value,
+    typo_contractuelle: document.getElementById('aoTypoC').value,
+    typo_installee: document.getElementById('aoTypoI').value,
+    batch: document.getElementById('aoBatch').value,
+    puissance_w: document.getElementById('aoPuissance').value,
+    type: document.getElementById('aoType').value,
+    added_at: Date.now()
+  };
+  DB.ref('/og_custom_sites/'+sid).set(data).then(function(){
+    closeAddOgSite();
+    alert('OG Site '+sid+' added! It now appears in OG Sites and OG Overview.');
+  }).catch(function(e){ err.textContent='Firebase error: '+e.message; err.style.display='block'; });
+}
 </script>
 </
+<!-- ADD SITE MODAL -->
+<div id="addSiteModal" class="overlay hidden" style="z-index:2000">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:580px;width:95%;box-shadow:0 8px 40px #0003;position:relative;max-height:90vh;overflow-y:auto">
+    <button onclick="closeAddSite()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#667">&times;</button>
+    <h3 style="margin:0 0 18px;color:#1a3c5e;font-size:1rem">&#10133; Add New Site</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site ID <span style="color:#ef4444">*</span></label>
+        <input id="asSiteId" placeholder="e.g. DKR_9999" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site Name</label>
+        <input id="asSiteName" placeholder="e.g. DAKAR NORD" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Region</label>
+        <input id="asSiteRegion" placeholder="e.g. Dakar" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Zone</label>
+        <input id="asSiteZone" placeholder="e.g. Z1" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Energy Type</label>
+        <input id="asSiteEnergy" placeholder="e.g. SECTEUR+SOLAIRE+GE" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:8px">Projects <span style="color:#667;font-weight:400">(select all that apply)</span></label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px" id="asProjChecks">
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="b0"> Batch 0</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="b1ps"> B1 PS</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="b1nps"> B1 NPS</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="ct"> Ch.Typo</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="b2ps"> B2 PS</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="rx"> Recapex</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="p0"> P0</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;background:#f1f5f9;padding:5px 10px;border-radius:7px;cursor:pointer"><input type="checkbox" value="d2"> D2 Recap</label>
+      </div>
+    </div>
+    <div id="asSiteErr" style="color:#ef4444;font-size:.8rem;display:none;margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeAddSite()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewSite()">&#10003; Save Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD OG SITE MODAL -->
+<div id="addOgSiteModal" class="overlay hidden" style="z-index:2000">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:560px;width:95%;box-shadow:0 8px 40px #0003;position:relative">
+    <button onclick="closeAddOgSite()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#667">&times;</button>
+    <h3 style="margin:0 0 18px;color:#0f766e;font-size:1rem">&#10133; Add New OG Site</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site ID <span style="color:#ef4444">*</span></label>
+        <input id="aoSiteId" placeholder="e.g. DAKAR_NEW01" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site Name</label>
+        <input id="aoSiteName" placeholder="e.g. DAKAR NEW 01" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">OG Batch <span style="color:#ef4444">*</span></label>
+        <select id="aoOgYear" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="OG26">OG26</option>
+          <option value="OG25">OG25</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Puissance (W)</label>
+        <select id="aoPuissance" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="4000">4000</option>
+          <option value="2000">2000</option>
+          <option value="">Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Typo Contractuelle</label>
+        <select id="aoTypoC" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="A_Ax_GG_S0">A_Ax_GG_S0</option>
+          <option value="A_Ax_GG_S1">A_Ax_GG_S1</option>
+          <option value="A_Ax_PS">A_Ax_PS</option>
+          <option value="A_Ax_S6">A_Ax_S6</option>
+          <option value="">Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Typo Installée</label>
+        <select id="aoTypoI" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="A_Ax_GG_S0">A_Ax_GG_S0</option>
+          <option value="A_Ax_GG_S1">A_Ax_GG_S1</option>
+          <option value="A_Ax_PS">A_Ax_PS</option>
+          <option value="A_Ax_S6">A_Ax_S6</option>
+          <option value="">Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Batch</label>
+        <select id="aoBatch" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="Batch 120 sites">Batch 120 sites</option>
+          <option value="BATCH 81 Sites GRID">BATCH 81 Sites GRID</option>
+          <option value="Batch 81 Sites">Batch 81 Sites</option>
+          <option value="BATCH 112 sites">BATCH 112 sites</option>
+          <option value="Batch 76 sites">Batch 76 sites</option>
+          <option value="">Other</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Type</label>
+        <select id="aoType" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="Outdoor">Outdoor</option>
+          <option value="Indoor">Indoor</option>
+        </select>
+      </div>
+    </div>
+    <div id="aoSiteErr" style="color:#ef4444;font-size:.8rem;display:none;margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeAddOgSite()">Cancel</button>
+      <button class="btn btn-primary" style="background:#0f766e;border-color:#0f766e" onclick="saveNewOgSite()">&#10003; Save OG Site</button>
+    </div>
+  </div>
+</div>
