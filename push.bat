@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "feat: Add Outdoorisation (40 sites) and Relocalisation (11 sites) project pages with nav tabs, overview stats, and modal checkboxes" --allow-empty
+git commit -m "feat: Add Outdoorisation/Relocalisation projects, per-project status tracking, and extended import with per-project status columns" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
