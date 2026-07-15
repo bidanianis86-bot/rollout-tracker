@@ -871,6 +871,14 @@ function buildOvThead(){
   </tr>`;
 }
 
+function ovPjSym(sid,inProj,pkey){
+  if(!inProj)return'<span style="color:#d1d5db">&middot;</span>';
+  var st=(projStates[sid]||{})[pkey]||'none';
+  if(st==='done')    return'<span style="color:#16a34a;font-weight:700;font-size:.9rem">&#10003;</span>';
+  if(st==='progress')return'<span style="color:#2563eb;font-weight:700;font-size:.9rem">&#9679;</span>';
+  if(st==='blocked') return'<span style="color:#dc2626;font-weight:700;font-size:.9rem">&#10007;</span>';
+  return'<span style="color:#9ca3af;font-size:.9rem">&#10003;</span>';
+}
 function renderOv(){
   const q=(document.getElementById('ovQ')?.value||'').toLowerCase();
   const px=document.getElementById('ovPfx')?.value||'';
@@ -927,12 +935,12 @@ function renderOv(){
       <td style="color:#556">${r[3]||r[12]||'&mdash;'}</td>
       <td><span class="${tpC(r[10])}">${r[10]||'&mdash;'}</span></td>
       <td>${r[17]?`<span class="rx-yes">&#10003;&nbsp;${r[17]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk">${ck(r[4])}</td><td class="chk">${ck(r[5])}</td><td class="chk">${ck(r[6])}</td>
-      <td class="chk">${ck(r[7])}</td><td class="chk">${ck(r[8])}</td>
+      <td class="chk">${ovPjSym(r[0],r[4],'b0')}</td><td class="chk">${ovPjSym(r[0],r[5],'b1ps')}</td><td class="chk">${ovPjSym(r[0],r[6],'b1nps')}</td>
+      <td class="chk">${ovPjSym(r[0],r[7],'ct')}</td><td class="chk">${ovPjSym(r[0],r[8],'b2ps')}</td>
       <td>${r[14]?`<span class="p0-yes">Resizing&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk">${r[18]?'<span class="ck ck1" style="background:#ede9fe;color:#4c1d95">&#10003;</span>':'<span class="ck ck0">&middot;</span>'}</td>
-      <td class="chk">${(r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0])))?'<span class="ck ck1" style="background:#fff3e0;color:#e67e22">&#10003;</span>':'<span class="ck ck0">&middot;</span>'}</td>
-      <td class="chk">${(r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0])))?'<span class="ck ck1" style="background:#f3e8ff;color:#8e44ad">&#10003;</span>':'<span class="ck ck0">&middot;</span>'}</td>
+      <td class="chk">${ovPjSym(r[0],r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])),'d2')}</td>
+      <td class="chk">${ovPjSym(r[0],r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0])),'out')}</td>
+      <td class="chk">${ovPjSym(r[0],r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0])),'rel')}</td>
       <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
       ${cCells}
       <td style="font-size:.77rem;color:#445">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span> ':''} ${s.assignee||''}</td>
