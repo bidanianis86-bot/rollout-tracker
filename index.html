@@ -4193,10 +4193,11 @@ document.getElementById('importTrackerFile').addEventListener('change',function(
       if(i>=0)projStIdx[k]=i;
     });
     if(idIdx<0){pr.innerHTML='<span style="color:red">No "Site ID" column found. First column must be Site ID.</span>';return;}
+    var _fbInvalid=/[\.#\$\[\]\/]/;
     _importRows=[];
     data.slice(1).forEach(function(row){
       var sid=(row[idIdx]||'').toString().trim();
-      if(!sid)return;
+      if(!sid||_fbInvalid.test(sid)||sid.length>60)return; // skip hint/legend rows
       var obj={site:sid};
       if(stIdx>=0&&row[stIdx])obj.status=(row[stIdx]||'').toString().trim().toLowerCase();
       if(asIdx>=0&&row[asIdx])obj.assignee=(row[asIdx]||'').toString().trim();
@@ -4229,8 +4230,10 @@ function applyTrackerImport(){
   var stateUpdates={};
   var histPromises=[];
   var ts=Date.now();
+  var _fbBad=/[\.#\$\[\]\/]/;
   _importRows.forEach(function(r){
     var sid=r.site;
+    if(!sid||_fbBad.test(sid)||sid.length>60)return; // skip hint/legend rows
     var cur=states[sid]||{};
     var newStatus=r.status||cur.status||'none';
     var newProject=r.project!==undefined?r.project:(cur.project||'');
