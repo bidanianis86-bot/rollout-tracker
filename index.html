@@ -4173,11 +4173,17 @@ document.getElementById('importTrackerFile').addEventListener('change',function(
     if(!data||!data.length){pr.innerHTML='<span style="color:red">Empty file.</span>';return;}
     var hdr=data[0].map(function(h){return (h||'').toString().trim().toLowerCase();});
     var idIdx=hdr.findIndex(function(h){return h==='site id'||h==='site_id'||h==='siteid'||h==='id';});
-    var stIdx=hdr.findIndex(function(h){return h.includes('status');});
+    var stIdx=hdr.findIndex(function(h){return h==='status';});
     var asIdx=hdr.findIndex(function(h){return h.includes('assignee');});
     var cpIdx=hdr.findIndex(function(h){return h.includes('tagged')||h==='project'||h==='project this update'||h.includes('relates');});
     var fuIdx=hdr.findIndex(function(h){return h.includes('follow');});
     var ntIdx=hdr.findIndex(function(h){return h.includes('note');});
+    var _pjKeysList=['b0','b1ps','b1nps','ct','b2ps','rx','p0','d2','out','rel'];
+    var projStIdx={};
+    _pjKeysList.forEach(function(k){
+      var i=hdr.findIndex(function(h){return h===k+' status'||h===k+'_status';});
+      if(i>=0)projStIdx[k]=i;
+    });
     if(idIdx<0){pr.innerHTML='<span style="color:red">No "Site ID" column found. First column must be Site ID.</span>';return;}
     _importRows=[];
     data.slice(1).forEach(function(row){
@@ -4189,6 +4195,9 @@ document.getElementById('importTrackerFile').addEventListener('change',function(
       if(cpIdx>=0&&row[cpIdx])obj.project=(row[cpIdx]||'').toString().trim();
       if(fuIdx>=0&&row[fuIdx])obj.followup=(row[fuIdx]||'').toString().trim();
       if(ntIdx>=0&&row[ntIdx])obj.note=(row[ntIdx]||'').toString().trim();
+      var pst={};
+      Object.keys(projStIdx).forEach(function(k){var v=(row[projStIdx[k]]||'').toString().trim().toLowerCase();if(v&&v!=='none')pst[k]=v;});
+      if(Object.keys(pst).length)obj.projStates=pst;
       _importRows.push(obj);
     });
     var prev='<b style="font-size:.83rem">Preview (first 10 of '+_importRows.length+' rows):</b><table style="width:100%;border-collapse:collapse;margin-top:6px"><tr style="background:#e8f0fe;font-size:.77rem">';
@@ -4220,6 +4229,7 @@ function applyTrackerImport(){
     var newAssignee=r.assignee!==undefined?r.assignee:(cur.assignee||'');
     var newFollowup=r.followup!==undefined?r.followup:(cur.followup||'');
     stateUpdates['/states/'+sid]={status:newStatus,project:newProject,assignee:newAssignee,followup:newFollowup};
+    if(r.projStates){Object.keys(r.projStates).forEach(function(pk){stateUpdates['/proj_states/'+sid+'/'+pk]=r.projStates[pk];});}
     // Always create a history entry (mirrors the Save Update button)
     var histEntry={status:newStatus,project:newProject,assignee:newAssignee,followup:newFollowup,note:r.note||'[Bulk import]',ts:ts};
     histPromises.push(DB.ref('/updates/'+sid).push(histEntry));
@@ -4240,12 +4250,12 @@ function applyTrackerImport(){
 function downloadTrackerTemplate(){
   // Sheet 1: import data (columns match the manual form)
   var dataRows=[
-    ['Site ID','Status','Project','Assignee','Follow-up Date','Note / Comment'],
-    // Example rows
-    ['BKL_0086','progress','b0','John Doe','2026-07-15','Rollout started, antenna installed'],
-    ['BKL_0087','done','rx','Jane Smith','','Equipment installed and tested'],
-    ['BKL_0098','blocked','b1ps','','','Waiting for site access approval'],
-    ['BKL_0146','none','','','',''],
+    ['Site ID','Status','Project','Assignee','Follow-up Date','Note / Comment','B0 Status','B1PS Status','B1NPS Status','CT Status','B2PS Status','RX Status','P0 Status','D2 Status','OUT Status','REL Status'],
+    // Columns G-P: per-project status (none / progress / done / blocked). Leave blank to keep existing.
+    ['BKL_0086','progress','b0','John Doe','2026-07-15','Rollout started','progress','','','','','','','','',''],
+    ['BKL_0087','done','rx','Jane Smith','','Equipment done','','','','','','done','','','',''],
+    ['BKL_0098','blocked','b1ps','','','Waiting for access','','blocked','','','','','','','',''],
+    ['BKL_0146','none','','','','','','','','','','','','','',''],
   ];
   // Sheet 2: valid values reference
   var refRows=[
@@ -4267,6 +4277,11 @@ function downloadTrackerTemplate(){
     ['• Leave Status blank to keep existing status','','',''],
     ['• Leave Project blank to keep existing tagged project','','',''],
     ['• Every imported row creates a history entry','','',''],
+    ['','','',''],
+    ['PROJECT STATUS COLUMNS (G–P)','','',''],
+    ['• B0 Status → REL Status each set that project's per-site status independently','','',''],
+    ['• Valid values: none  progress  done  blocked','','',''],
+    ['• Leave blank to keep existing per-project status unchanged','','',''],
   ];
   var wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dataRows),'Import Data');
