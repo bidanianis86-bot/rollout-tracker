@@ -755,27 +755,33 @@ function setConn(on){
 }
 
 function listenData(){
+  // _eagLoaded: false until all equip_vals have loaded once. Other listeners skip render until then.
+  var _eagPending=0;
+  var _eagLoaded=false;
+  ALL_PROJS.forEach(function(p){if(p.key!=='og'&&p.idx)_eagPending++;});
+
   // Listen to states
   DB.ref('/states').on('value', snap=>{
     states=snap.val()||{};
-    renderOv(); renderList();
+    if(_eagLoaded){renderOv(); renderList();}
     if(selId)loadHist(selId);
   });
   // Listen to custom cols metadata
   DB.ref('/col_meta').on('value', snap=>{
     const d=snap.val()||{};
     customCols=Object.values(d).sort((a,b)=>a.order-b.order||0);
-    buildOvThead(); renderOv();
+    if(_eagLoaded){buildOvThead(); renderOv();}
   });
   // Listen to custom col values
   DB.ref('/col_vals').on('value', snap=>{
     customColVals=snap.val()||{};
-    renderOv();
+    if(_eagLoaded)renderOv();
   });
   // Listen to custom sites
   DB.ref('/custom_sites').on('value', snap=>{
     customSites=snap.val()||{};
-    rebuildSites(); renderOv(); renderList();
+    rebuildSites();
+    if(_eagLoaded){renderOv(); renderList();}
     if(!window._projBootstrapDone){_bootstrapProjAssignments();}
   });
   // Listen to OG custom sites
@@ -787,15 +793,16 @@ function listenData(){
   // Per-project status
   DB.ref('/proj_states').on('value', snap=>{
     projStates=snap.val()||{};
-    renderList();
+    if(_eagLoaded)renderList();
     if(selId) refreshProjStatus();
   });
   // Connection state
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
-  // Eagerly load all project equip_vals so Overview/Tracker show correct flags
-  // Track initial load — render only once all project equip_vals have fired at least once
-  var _eagPending=0;
-  ALL_PROJS.forEach(function(p){if(p.key!=='og'&&p.idx)_eagPending++;});
+  // Safety: if equip_vals take >5s, render anyway with whatever loaded
+  setTimeout(function(){
+    if(!_eagLoaded){_eagLoaded=true;rebuildSites();buildOvThead();renderOv();renderList();}
+  },5000);
+  // Eagerly load all project equip_vals — one combined render when all have fired once
   ALL_PROJS.forEach(function(p){
     if(p.key==='og'||!p.idx)return;
     var _firstFire=true;
@@ -810,7 +817,10 @@ function listenData(){
       if(_firstFire){
         _firstFire=false;
         _eagPending--;
-        if(_eagPending===0){rebuildSites();renderOv();renderList();} // all loaded — one render
+        if(_eagPending===0){
+          _eagLoaded=true; // unlock all other listeners
+          rebuildSites();buildOvThead();renderOv();renderList();
+        }
       } else {
         // Real-time update after initial load
         rebuildSites();renderOv();renderList();
