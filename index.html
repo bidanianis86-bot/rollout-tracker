@@ -776,6 +776,7 @@ function listenData(){
   DB.ref('/custom_sites').on('value', snap=>{
     customSites=snap.val()||{};
     rebuildSites(); renderOv(); renderList();
+    if(!window._projBootstrapDone){_bootstrapProjAssignments();}
   });
   // Listen to OG custom sites
   DB.ref('/og_custom_sites').on('value', snap=>{
@@ -793,6 +794,27 @@ function listenData(){
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
 }
 
+/* Auto-fix: create /custom_sites entries for base sites added before the project-assignment fix */
+function _bootstrapProjAssignments(){
+  window._projBootstrapDone=true;
+  if(!DB)return;
+  var _pjList=['b0','b1ps','b1nps','ct','b2ps','rx','p0','d2','out','rel'];
+  _pjList.forEach(function(pk){
+    DB.ref('/equip_vals/'+pk).once('value',function(snap){
+      var vals=snap.val()||{};
+      var upd={};
+      Object.keys(vals).forEach(function(sid){
+        if(!BASE_MAP[sid])return; // only base sites need bootstrap
+        if(customSites[sid]&&((customSites[sid].projects)||{})[pk])return; // already assigned
+        upd['/custom_sites/'+sid+'/projects/'+pk]=1;
+      });
+      if(Object.keys(upd).length){
+        console.log('[Bootstrap] Fixing proj assignments:',Object.keys(upd));
+        DB.ref().update(upd);
+      }
+    });
+  });
+}
 function rebuildSites(){
   SITES=BASE_SITES.map(function(r){return r.slice();});
   var pjKeys={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18,out:19,rel:20};
