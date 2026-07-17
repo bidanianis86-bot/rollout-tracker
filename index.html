@@ -1505,8 +1505,10 @@ function showProjPage(key){
       if(curProjKey===key){buildProjThead();renderProjTable();}
     });
     DB.ref('/equip_vals/'+key).on('value',snap=>{
-      var staticVals=(STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals)||{};
-      projEquipVals[key]=Object.assign({},staticVals,snap.val()||{});
+      var fbVals=snap.val()||{};
+      var staticVals=Object.assign({},(STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals)||{});
+      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){delete staticVals[sid];delete fbVals[sid];}});
+      projEquipVals[key]=Object.assign({},staticVals,fbVals);
       if(curProjKey===key)renderProjTable();
     });
   } else {
@@ -1539,7 +1541,7 @@ function buildProjThead(){
     +'<th>Site ID</th><th>Site Name</th><th>Region</th><th>Zone</th><th>Energy</th>'
     +extra.map(function(e){return '<th>'+e.label+'</th>';}).join('')
     +cols.map(function(c){return '<th class="th-custom">'+c.display_name+'</th>';}).join('')
-    +'<th>Assignee</th><th>Follow-up</th><th>Status</th>'
+    +'<th>Assignee</th><th>Follow-up</th><th>Status</th><th style="width:72px;text-align:center">Actions</th>'
     +'</tr>';
 }
 
@@ -1606,12 +1608,87 @@ function renderProjTable(){
       +'<td style="font-size:.75rem">'+fu+'</td>'
       +'<td><span class="st-dot sd-'+st+'" style="margin-right:4px"></span>'
         +'<span style="font-size:.75rem;color:#556">'+(STLBL[st]||'')+'</span></td>'
+      +'<td onclick="event.stopPropagation()" style="text-align:center;white-space:nowrap;padding:4px">'
+        +'<button title="Edit equipment" onclick="event.stopPropagation();editPjSite(this.closest(\'tr\').dataset.id)" style="background:#e0f2fe;border:none;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:.8rem;color:#0369a1;margin-right:3px">&#9998;</button>'
+        +'<button title="Remove from project" onclick="event.stopPropagation();deletePjSite(this.closest(\'tr\').dataset.id)" style="background:#fee2e2;border:none;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:.8rem;color:#dc2626">&#10007;</button>'
+        +'</td>'
       +'</tr>';
   }).join('');
   // Refresh detail panel if open
   if(pjSelId)renderPjDetailBody();
 }
 
+/* ── Edit/Delete site per project ── */
+var _pjEditSid=null;
+function editPjSite(sid){
+  _pjEditSid=sid;
+  var key=curProjKey;
+  var cols=projEquipMeta[key]||[];
+  var vals=(projEquipVals[key]||{})[sid]||{};
+  var proj=ALL_PROJS.find(p=>p.key===key);
+  var m=document.getElementById('pjEditModal');
+  if(!m){
+    m=document.createElement('div');
+    m.id='pjEditModal';
+    m.className='overlay';
+    m.style.cssText='z-index:3000';
+    m.innerHTML='<div id="pjEditBox" style="background:#fff;border-radius:14px;padding:28px 32px;max-width:560px;width:95%;box-shadow:0 8px 40px #0003;position:relative;max-height:88vh;overflow-y:auto">'
+      +'<button onclick="closePjEditModal()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#667">&times;</button>'
+      +'<h3 id="pjEditTitle" style="margin:0 0 16px;color:#1a3c5e;font-size:1rem"></h3>'
+      +'<div id="pjEditFields" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>'
+      +'<div id="pjEditErr" style="color:#dc2626;font-size:.8rem;display:none;margin-bottom:8px"></div>'
+      +'<div style="display:flex;gap:10px">'
+        +'<button onclick="savePjSiteEdit()" style="background:#1a3c5e;color:#fff;border:none;padding:9px 22px;border-radius:7px;font-weight:600;cursor:pointer;font-size:.85rem">Save</button>'
+        +'<button onclick="closePjEditModal()" style="background:#f1f5f9;color:#334155;border:none;padding:9px 16px;border-radius:7px;cursor:pointer;font-size:.85rem">Cancel</button>'
+      +'</div>'
+    +'</div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById('pjEditTitle').textContent=(proj?proj.label:'')+'  —  '+sid;
+  var fld=document.getElementById('pjEditFields');
+  fld.innerHTML=cols.length?cols.map(function(c){
+    var v=vals[c.col_key]||'';
+    return '<div><label style="font-size:.72rem;font-weight:600;color:#334155;display:block;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(c.display_name||c.col_key)+'">'+(c.display_name||c.col_key)+'</label>'
+      +'<input data-col="'+c.col_key+'" value="'+v.toString().replace(/"/g,"&quot;")+'" style="width:100%;padding:5px 8px;border:1px solid #c0cfe0;border-radius:6px;font-size:.8rem;box-sizing:border-box" placeholder="'+( c.display_name||'')+'"></div>';
+  }).join(''):'<p style="grid-column:1/-1;color:#94a3b8;font-size:.85rem">No equipment columns defined for this project.</p>';
+  document.getElementById('pjEditErr').style.display='none';
+  m.classList.remove('hidden');
+}
+function closePjEditModal(){
+  var m=document.getElementById('pjEditModal');if(m)m.classList.add('hidden');
+}
+function savePjSiteEdit(){
+  if(!_pjEditSid||!curProjKey||!DB){return;}
+  var newVals={};
+  document.querySelectorAll('#pjEditFields input[data-col]').forEach(function(inp){
+    var v=inp.value.trim();
+    newVals[inp.getAttribute('data-col')]=v||null;
+  });
+  DB.ref('/equip_vals/'+curProjKey+'/'+_pjEditSid).update(newVals)
+    .then(function(){closePjEditModal();})
+    .catch(function(e){
+      var er=document.getElementById('pjEditErr');
+      er.textContent='Save failed: '+e.message;er.style.display='block';
+    });
+}
+function deletePjSite(sid){
+  var key=curProjKey;
+  var proj=ALL_PROJS.find(p=>p.key===key);
+  if(!confirm('Remove '+sid+' from '+(proj?proj.label:key)+'?\n\nThis will hide the site from this project page and overview counter.'))return;
+  if(!DB){alert('Firebase not connected.');return;}
+  var isStatic=STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals&&STATIC_EQUIP[key].vals[sid];
+  var upd={};
+  if(isStatic){
+    upd['/equip_vals/'+key+'/'+sid]={_removed:true};
+  } else {
+    DB.ref('/equip_vals/'+key+'/'+sid).remove();
+  }
+  upd['/custom_sites/'+sid+'/projects/'+key]=null;
+  if(Object.keys(upd).length)DB.ref().update(upd);
+  if(projEquipVals[key])delete projEquipVals[key][sid];
+  if(pjSelId===sid){pjSelId=null;var d=document.getElementById('pjDetail');if(d)d.style.display='none';}
+  renderProjTable();
+}
 /* ── Project site detail panel ── */
 function openPjDetail(id){
   pjSelId=id;
