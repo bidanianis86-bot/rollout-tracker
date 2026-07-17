@@ -841,6 +841,14 @@ function _bootstrapProjAssignments(){
       var upd={};
       Object.keys(vals).forEach(function(sid){
         if(!BASE_MAP[sid])return; // only base sites need bootstrap
+        if(vals[sid]&&vals[sid]._removed){
+          // Site was explicitly removed — clean up any stale custom_sites assignment
+          if(customSites[sid]&&((customSites[sid].projects)||{})[pk]){
+            upd['/custom_sites/'+sid+'/projects/'+pk]=null;
+          }
+          return;
+        }
+        if((_removedFromProj[pk]||new Set()).has(sid))return; // client-side removal — don't re-assign
         if(customSites[sid]&&((customSites[sid].projects)||{})[pk])return; // already assigned
         upd['/custom_sites/'+sid+'/projects/'+pk]=1;
       });
