@@ -835,38 +835,37 @@ function _bootstrapProjAssignments(){
   window._projBootstrapDone=true;
   if(!DB)return;
   var _pjList=['b0','b1ps','b1nps','ct','b2ps','rx','p0','d2','out','rel'];
+  var _bsPending=_pjList.length;
+  var _allUpd={};
   _pjList.forEach(function(pk){
     DB.ref('/equip_vals/'+pk).once('value',function(snap){
       var vals=snap.val()||{};
-      var upd={};
       Object.keys(vals).forEach(function(sid){
-        if(!BASE_MAP[sid])return; // only base sites need bootstrap
+        if(!BASE_MAP[sid])return;
         if(vals[sid]&&vals[sid]._removed){
-          // Site was explicitly removed — clean up any stale custom_sites assignment
-          if(customSites[sid]&&((customSites[sid].projects)||{})[pk]){
-            upd['/custom_sites/'+sid+'/projects/'+pk]=null;
-          }
+          if(customSites[sid]&&((customSites[sid].projects)||{})[pk])
+            _allUpd['/custom_sites/'+sid+'/projects/'+pk]=null;
           return;
         }
-        if((_removedFromProj[pk]||new Set()).has(sid))return; // client-side removal — don't re-assign
-        if(customSites[sid]&&((customSites[sid].projects)||{})[pk])return; // already assigned
-        upd['/custom_sites/'+sid+'/projects/'+pk]=1;
+        if((_removedFromProj[pk]||new Set()).has(sid))return;
+        if(customSites[sid]&&((customSites[sid].projects)||{})[pk])return;
+        _allUpd['/custom_sites/'+sid+'/projects/'+pk]=1;
       });
-      // Auto-fix: STATIC_EQUIP site has custom_sites=1 but equip_vals is null/gone
-      // This happens when old delete code called .remove() instead of writing {_removed:true}
+      // Auto-fix: custom_sites=1 but equip_vals gone → was hard-deleted → write tombstone
       Object.keys(customSites).forEach(function(sid){
         var proj=(customSites[sid]&&customSites[sid].projects)||{};
-        if(!proj[pk])return; // no assignment for this project
-        if(vals[sid])return; // still in equip_vals — active, skip
-        if(!(STATIC_EQUIP[pk]&&STATIC_EQUIP[pk].vals&&STATIC_EQUIP[pk].vals[sid]))return; // not a static site
-        // Static site: custom_sites=1 but equip_vals gone → was hard-deleted → write tombstone
-        console.log('[Bootstrap] Auto-tombstone hard-deleted static site:',sid,'from',pk);
-        upd['/equip_vals/'+pk+'/'+sid]={_removed:true};
-        upd['/custom_sites/'+sid+'/projects/'+pk]=null;
+        if(!proj[pk])return;
+        if(vals[sid])return;
+        if(!(STATIC_EQUIP[pk]&&STATIC_EQUIP[pk].vals&&STATIC_EQUIP[pk].vals[sid]))return;
+        console.log('[Bootstrap] Auto-tombstone:',sid,'from',pk);
+        _allUpd['/equip_vals/'+pk+'/'+sid]={_removed:true};
+        _allUpd['/custom_sites/'+sid+'/projects/'+pk]=null;
       });
-      if(Object.keys(upd).length){
-        console.log('[Bootstrap] Fixing proj assignments:',Object.keys(upd));
-        DB.ref().update(upd);
+      _bsPending--;
+      if(_bsPending===0&&Object.keys(_allUpd).length){
+        // Single batch write for ALL projects — only 1 listener fire instead of 10
+        console.log('[Bootstrap] Batch fixing',Object.keys(_allUpd).length,'entries');
+        DB.ref().update(_allUpd);
       }
     });
   });

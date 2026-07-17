@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: auto-tombstone sites hard-deleted without tombstone (custom_sites=1 but equip_vals gone)" --allow-empty
+git commit -m "fix: batch bootstrap writes into 1 Firebase update (stops count fluctuation); smarter auto-tombstone" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
