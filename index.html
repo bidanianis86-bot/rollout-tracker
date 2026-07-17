@@ -798,7 +798,8 @@ function listenData(){
     DB.ref('/equip_vals/'+p.key).on('value',function(snap){
       var fbVals=snap.val()||{};
       var staticVals=Object.assign({},(STATIC_EQUIP[p.key]&&STATIC_EQUIP[p.key].vals)||{});
-      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){delete staticVals[sid];delete fbVals[sid];}});
+      if(!_removedFromProj[p.key])_removedFromProj[p.key]=new Set();
+      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){_removedFromProj[p.key].add(sid);delete staticVals[sid];delete fbVals[sid];}else{_removedFromProj[p.key].delete(sid);}});
       projEquipVals[p.key]=Object.assign({},staticVals,fbVals);
       if(STATIC_EQUIP[p.key])projEquipMeta[p.key]=STATIC_EQUIP[p.key].meta;
       projListeners.add(p.key);
@@ -871,6 +872,15 @@ function rebuildSites(){
     Object.keys(pev).forEach(function(sid){
       if(pev[sid]&&pev[sid]._removed)return;
       if(sitesIdx[sid]!==undefined)SITES[sitesIdx[sid]][p.idx]=1;
+    });
+  });
+  // Clear flags for sites explicitly removed from a project
+  ALL_PROJS.forEach(function(p){
+    if(p.key==='og'||!p.idx)return;
+    var rem=_removedFromProj[p.key];
+    if(!rem)return;
+    rem.forEach(function(sid){
+      if(sitesIdx[sid]!==undefined)SITES[sitesIdx[sid]][p.idx]=0;
     });
   });
 }
@@ -1506,6 +1516,7 @@ let curProjKey=null;
 const projEquipMeta={}; // key -> [{col_key,display_name,order}]
 const projEquipVals={}; // key -> {site_id: {col_key: val}}
 const projListeners=new Set();
+const _removedFromProj={}; // projKey -> Set of site IDs removed from that project
 
 function showProjPage(key){
   curProjKey=key;
@@ -1530,7 +1541,8 @@ function showProjPage(key){
     DB.ref('/equip_vals/'+key).on('value',snap=>{
       var fbVals=snap.val()||{};
       var staticVals=Object.assign({},(STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals)||{});
-      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){delete staticVals[sid];delete fbVals[sid];}});
+      if(!_removedFromProj[key])_removedFromProj[key]=new Set();
+      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){_removedFromProj[key].add(sid);delete staticVals[sid];delete fbVals[sid];}else{_removedFromProj[key].delete(sid);}});
       projEquipVals[key]=Object.assign({},staticVals,fbVals);
       if(curProjKey===key)renderProjTable();
     });
