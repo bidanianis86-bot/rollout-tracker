@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: bootstrap was re-writing deleted project assignments — now clears stale custom_sites for _removed sites" --allow-empty
+git commit -m "fix: hide deleted sites from overview/tracker; STATIC_PROJ_SITES counters now respect _removed tombstones" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
