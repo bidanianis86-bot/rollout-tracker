@@ -793,8 +793,12 @@ function listenData(){
   // Connection state
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
   // Eagerly load all project equip_vals so Overview/Tracker show correct flags
+  // Track initial load — render only once all project equip_vals have fired at least once
+  var _eagPending=0;
+  ALL_PROJS.forEach(function(p){if(p.key!=='og'&&p.idx)_eagPending++;});
   ALL_PROJS.forEach(function(p){
     if(p.key==='og'||!p.idx)return;
+    var _firstFire=true;
     DB.ref('/equip_vals/'+p.key).on('value',function(snap){
       var fbVals=snap.val()||{};
       var staticVals=Object.assign({},(STATIC_EQUIP[p.key]&&STATIC_EQUIP[p.key].vals)||{});
@@ -803,8 +807,15 @@ function listenData(){
       projEquipVals[p.key]=Object.assign({},staticVals,fbVals);
       if(STATIC_EQUIP[p.key])projEquipMeta[p.key]=STATIC_EQUIP[p.key].meta;
       projListeners.add(p.key);
-      rebuildSites();renderOv();renderList();
-      if(curProjKey===p.key){buildProjThead();renderProjTable();}
+      if(_firstFire){
+        _firstFire=false;
+        _eagPending--;
+        if(_eagPending===0){rebuildSites();renderOv();renderList();} // all loaded — one render
+      } else {
+        // Real-time update after initial load
+        rebuildSites();renderOv();renderList();
+        if(curProjKey===p.key){buildProjThead();renderProjTable();}
+      }
     });
   });
 }
