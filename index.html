@@ -1711,18 +1711,17 @@ function deletePjSite(sid){
   var proj=ALL_PROJS.find(p=>p.key===key);
   if(!confirm('Remove '+sid+' from '+(proj?proj.label:key)+'?\n\nThis will hide the site from this project page and overview counter.'))return;
   if(!DB){alert('Firebase not connected.');return;}
-  var isStatic=STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals&&STATIC_EQUIP[key].vals[sid];
-  var upd={};
-  if(isStatic){
-    upd['/equip_vals/'+key+'/'+sid]={_removed:true};
-  } else {
-    DB.ref('/equip_vals/'+key+'/'+sid).remove();
-  }
-  upd['/custom_sites/'+sid+'/projects/'+key]=null;
-  if(Object.keys(upd).length)DB.ref().update(upd);
+  // Immediately update client state so Overview/Tracker reflect change before Firebase responds
+  if(!_removedFromProj[key])_removedFromProj[key]=new Set();
+  _removedFromProj[key].add(sid);
   if(projEquipVals[key])delete projEquipVals[key][sid];
+  // Always write _removed:true (tombstone) so Firebase listener can track removal
+  var upd={};
+  upd['/equip_vals/'+key+'/'+sid]={_removed:true};
+  upd['/custom_sites/'+sid+'/projects/'+key]=null;
+  DB.ref().update(upd);
   if(pjSelId===sid){pjSelId=null;var d=document.getElementById('pjDetail');if(d)d.style.display='none';}
-  renderProjTable();
+  rebuildSites();renderOv();renderList();renderProjTable();
 }
 /* ── Project site detail panel ── */
 function openPjDetail(id){
