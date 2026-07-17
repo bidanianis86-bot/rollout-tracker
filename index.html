@@ -794,15 +794,18 @@ function listenData(){
 }
 
 function rebuildSites(){
-  SITES=[...BASE_SITES];
+  SITES=BASE_SITES.map(function(r){return r.slice();});
+  var pjKeys={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18,out:19,rel:20};
   Object.entries(customSites).forEach(([sid,r])=>{
     if(!BASE_MAP[sid]){
       var row=[sid,r.name||'',r.region||'',r.zone||'',0,0,0,0,0,0,r.energy||'','','','',0,'',0,'',0,'',''];
-      var pjKeys={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18,out:19,rel:20};
       var cnt=0;
       if(r.projects){Object.entries(r.projects).forEach(function([pk,v]){if(v&&pjKeys[pk]!==undefined){row[pjKeys[pk]]=1;cnt++;}});}
       row[9]=cnt||1;
       SITES.push(row);
+    } else if(r.projects){
+      var idx=SITES.findIndex(function(s){return s[0]===sid;});
+      if(idx>=0){Object.entries(r.projects).forEach(function([pk,v]){if(v&&pjKeys[pk]!==undefined)SITES[idx][pjKeys[pk]]=1;});}
     }
   });
   // Also include Excel-only sites from static equip data
@@ -1471,11 +1474,13 @@ function showProjPage(key){
     projListeners.add(key);
     DB.ref('/equip_meta/'+key).on('value',snap=>{
       const d=snap.val()||{};
-      projEquipMeta[key]=Object.values(d).sort((a,b)=>(a.order||0)-(b.order||0));
+      var fbMeta=Object.values(d).sort((a,b)=>(a.order||0)-(b.order||0));
+      projEquipMeta[key]=(STATIC_EQUIP[key]&&STATIC_EQUIP[key].meta)||fbMeta;
       if(curProjKey===key){buildProjThead();renderProjTable();}
     });
     DB.ref('/equip_vals/'+key).on('value',snap=>{
-      projEquipVals[key]=snap.val()||{};
+      var staticVals=(STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals)||{};
+      projEquipVals[key]=Object.assign({},staticVals,snap.val()||{});
       if(curProjKey===key)renderProjTable();
     });
   } else {
@@ -4303,15 +4308,13 @@ function downloadTrackerTemplate(){
 /* Inject static equip data before Firebase listeners */
 const _origShowProjPage = showProjPage;
 showProjPage = function(key) {
-  if(STATIC_EQUIP[key]) {
+  if(STATIC_EQUIP[key] && !projListeners.has(key)) {
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
     projEquipVals[key] = STATIC_EQUIP[key].vals;
-    projListeners.add(key);
   }
   _origShowProjPage(key);
   if(STATIC_EQUIP[key]) {
     projEquipMeta[key] = STATIC_EQUIP[key].meta;
-    projEquipVals[key] = STATIC_EQUIP[key].vals;
     buildProjThead();
     renderProjTable();
   }
@@ -4608,7 +4611,7 @@ function _asSiteLookup(){
     err.style.color='#0369a1';
     err.textContent='Site found in tracker — fields pre-filled. Only project/equipment data will be saved.';
     err.style.display='block';
-  } else if(customSites[sid]){
+  } else if(customSites[sid]&&!BASE_MAP[sid]){
     err.style.color='#b91c1c';
     err.textContent='Site ID already exists as a custom site. Edit it from the Tracker instead.';
     err.style.display='block';
@@ -4672,11 +4675,12 @@ function saveNewSite(){
   var err=document.getElementById('asSiteErr');
   err.style.display='none';
   if(!sid){ err.textContent='Site ID is required.'; err.style.display='block'; return; }
-  if(customSites[sid]){ err.textContent='Site ID already exists as a custom site. Edit it from the Tracker instead.'; err.style.display='block'; return; }
+  if(customSites[sid]&&!BASE_MAP[sid]){ err.textContent='Site ID already exists as a custom site. Edit it from the Tracker instead.'; err.style.display='block'; return; }
   if(!DB){ err.textContent='Firebase not connected. Please reload.'; err.style.display='block'; return; }
   var _siteAlreadyInBase = !!BASE_MAP[sid];
   var projects={};
   document.querySelectorAll('#asProjChecks input[type=checkbox]:checked').forEach(function(cb){ projects[cb.value]=1; });
+  if(Object.keys(projects).length===0){ err.textContent='Please select at least one project.'; err.style.display='block'; return; }
   var siteData={
     name: document.getElementById('asSiteName').value.trim(),
     region: document.getElementById('asSiteRegion').value.trim(),
@@ -4689,7 +4693,11 @@ function saveNewSite(){
   // Collect equipment fields for active project
   var updates = {};
   if(!_siteAlreadyInBase){
-    updates['/custom_sites/'+sid] = siteData; // only create entry for NEW sites
+    updates['/custom_sites/'+sid] = siteData;
+  } else {
+    // Existing base site — merge project assignment (preserve prior custom project entries)
+    var _existingProjs=((customSites[sid]||{}).projects)||{};
+    updates['/custom_sites/'+sid]={projects:Object.assign({},_existingProjs,projects),source:'proj_assign',added_at:Date.now()};
   }
   if(_addSiteActiveProjKey){
     var equip={};
@@ -4697,13 +4705,8 @@ function saveNewSite(){
       var v=inp.value.trim();
       if(v) equip[inp.getAttribute('data-equip-col')]=v;
     });
-    if(Object.keys(equip).length>0){
-      updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid]=equip;
-    }
-  }
-  if(Object.keys(updates).length===0){
-    err.textContent='No project selected or no equipment data to save.';
-    err.style.display='block'; return;
+    if(Object.keys(equip).length===0) equip={_assigned:1};
+    updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid]=equip;
   }
   DB.ref().update(updates).then(function(){
     closeAddSite();
