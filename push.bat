@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: Overview now shows all project flags correctly; sites appear in all their projects" --allow-empty
+git commit -m "feat: Edit/delete per site per project; fix all project flags in overview; auto-bootstrap project assignments" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
