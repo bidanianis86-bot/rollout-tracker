@@ -830,20 +830,24 @@ function rebuildSites(){
       if(idx>=0){Object.entries(r.projects).forEach(function([pk,v]){if(v&&pjKeys[pk]!==undefined)SITES[idx][pjKeys[pk]]=1;});}
     }
   });
-  // Also include Excel-only sites from static equip data
-  var seen=new Set(SITES.map(function(r){return r[0];}));
+  // Set project flags from static equip data (updates existing rows too)
+  var sitesIdx={};
+  SITES.forEach(function(r,i){sitesIdx[r[0]]=i;});
   ALL_PROJS.forEach(function(p){
-    if(p.key==='og')return;
+    if(p.key==='og'||!p.idx)return;
     var v=STATIC_EQUIP[p.key];
     if(!v)return;
     Object.keys(v.vals).forEach(function(sid){
-      if(seen.has(sid))return;
-      seen.add(sid);
-      var row=new Array(21).fill('');
-      row[0]=sid;
-      row[p.idx]=1;
-      if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}
-      SITES.push(row);
+      if(sitesIdx[sid]!==undefined){
+        SITES[sitesIdx[sid]][p.idx]=1;
+      } else {
+        sitesIdx[sid]=SITES.length;
+        var row=new Array(21).fill('');
+        row[0]=sid;
+        row[p.idx]=1;
+        if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}
+        SITES.push(row);
+      }
     });
   });
 }
