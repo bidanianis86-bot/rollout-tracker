@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: Guard Firebase import against legend/hint rows; per-project status symbols in overview" --allow-empty
+git commit -m "fix: Allow adding existing sites to new projects; per-project symbols in overview; import guard" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.

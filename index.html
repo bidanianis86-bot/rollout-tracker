@@ -4596,6 +4596,27 @@ document.addEventListener('DOMContentLoaded', function(){
 
 /* ══ ADD SITE (regular) ══ */
 var _addSiteActiveProjKey = null;
+function _asSiteLookup(){
+  var sid=document.getElementById('asSiteId').value.trim();
+  var err=document.getElementById('asSiteErr');
+  if(BASE_MAP[sid]){
+    var r=BASE_MAP[sid];
+    document.getElementById('asSiteName').value=r[1]||'';
+    document.getElementById('asSiteRegion').value=r[2]||'';
+    document.getElementById('asSiteZone').value=r[3]||r[12]||'';
+    document.getElementById('asSiteEnergy').value=r[10]||'';
+    err.style.color='#0369a1';
+    err.textContent='Site found in tracker — fields pre-filled. Only project/equipment data will be saved.';
+    err.style.display='block';
+  } else if(customSites[sid]){
+    err.style.color='#b91c1c';
+    err.textContent='Site ID already exists as a custom site. Edit it from the Tracker instead.';
+    err.style.display='block';
+  } else {
+    err.style.color='#b91c1c';
+    err.style.display='none';
+  }
+}
 function openAddSite(projKey){
   _addSiteActiveProjKey = projKey||null;
   document.getElementById('asSiteId').value='';
@@ -4651,8 +4672,9 @@ function saveNewSite(){
   var err=document.getElementById('asSiteErr');
   err.style.display='none';
   if(!sid){ err.textContent='Site ID is required.'; err.style.display='block'; return; }
-  if(BASE_MAP[sid]||customSites[sid]){ err.textContent='Site ID already exists in the tracker.'; err.style.display='block'; return; }
+  if(customSites[sid]){ err.textContent='Site ID already exists as a custom site. Edit it from the Tracker instead.'; err.style.display='block'; return; }
   if(!DB){ err.textContent='Firebase not connected. Please reload.'; err.style.display='block'; return; }
+  var _siteAlreadyInBase = !!BASE_MAP[sid];
   var projects={};
   document.querySelectorAll('#asProjChecks input[type=checkbox]:checked').forEach(function(cb){ projects[cb.value]=1; });
   var siteData={
@@ -4666,7 +4688,9 @@ function saveNewSite(){
   };
   // Collect equipment fields for active project
   var updates = {};
-  updates['/custom_sites/'+sid] = siteData;
+  if(!_siteAlreadyInBase){
+    updates['/custom_sites/'+sid] = siteData; // only create entry for NEW sites
+  }
   if(_addSiteActiveProjKey){
     var equip={};
     document.querySelectorAll('#asEquipFields input[data-equip-col]').forEach(function(inp){
@@ -4677,6 +4701,10 @@ function saveNewSite(){
       updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid]=equip;
     }
   }
+  if(Object.keys(updates).length===0){
+    err.textContent='No project selected or no equipment data to save.';
+    err.style.display='block'; return;
+  }
   DB.ref().update(updates).then(function(){
     closeAddSite();
     // Merge into local projEquipVals so it appears immediately
@@ -4684,7 +4712,11 @@ function saveNewSite(){
       if(!projEquipVals[_addSiteActiveProjKey]) projEquipVals[_addSiteActiveProjKey]={};
       projEquipVals[_addSiteActiveProjKey][sid]=updates['/equip_vals/'+_addSiteActiveProjKey+'/'+sid];
     }
-    alert('Site '+sid+' added successfully!');
+    if(_siteAlreadyInBase){
+      alert('Equipment data for '+sid+' saved under the selected project. (Site already exists in the tracker — only project data was written.)');
+    } else {
+      alert('Site '+sid+' added successfully!');
+    }
   }).catch(function(e){ err.textContent='Firebase error: '+e.message; err.style.display='block'; });
 }
 
@@ -4728,7 +4760,7 @@ function saveNewOgSite(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
       <div>
         <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site ID <span style="color:#ef4444">*</span></label>
-        <input id="asSiteId" placeholder="e.g. DKR_9999" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+        <input id="asSiteId" placeholder="e.g. DKR_9999" oninput="_asSiteLookup()" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
       </div>
       <div>
         <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site Name</label>
