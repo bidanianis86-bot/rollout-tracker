@@ -792,6 +792,20 @@ function listenData(){
   });
   // Connection state
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
+  // Eagerly load all project equip_vals so Overview/Tracker show correct flags
+  ALL_PROJS.forEach(function(p){
+    if(p.key==='og'||!p.idx)return;
+    DB.ref('/equip_vals/'+p.key).on('value',function(snap){
+      var fbVals=snap.val()||{};
+      var staticVals=Object.assign({},(STATIC_EQUIP[p.key]&&STATIC_EQUIP[p.key].vals)||{});
+      Object.keys(fbVals).forEach(function(sid){if(fbVals[sid]&&fbVals[sid]._removed){delete staticVals[sid];delete fbVals[sid];}});
+      projEquipVals[p.key]=Object.assign({},staticVals,fbVals);
+      if(STATIC_EQUIP[p.key])projEquipMeta[p.key]=STATIC_EQUIP[p.key].meta;
+      projListeners.add(p.key);
+      rebuildSites();renderOv();renderList();
+      if(curProjKey===p.key){buildProjThead();renderProjTable();}
+    });
+  });
 }
 
 /* Auto-fix: create /custom_sites entries for base sites added before the project-assignment fix */
@@ -848,6 +862,15 @@ function rebuildSites(){
         if(SITE_EXTRA&&SITE_EXTRA[sid]){var ex=SITE_EXTRA[sid];row[1]=ex[0];row[2]=ex[1];row[3]=ex[2];row[10]=ex[3];}
         SITES.push(row);
       }
+    });
+  });
+  // Also set flags from any Firebase equip_vals already loaded (startup eager-load)
+  ALL_PROJS.forEach(function(p){
+    if(p.key==='og'||!p.idx)return;
+    var pev=projEquipVals[p.key]||{};
+    Object.keys(pev).forEach(function(sid){
+      if(pev[sid]&&pev[sid]._removed)return;
+      if(sitesIdx[sid]!==undefined)SITES[sitesIdx[sid]][p.idx]=1;
     });
   });
 }
