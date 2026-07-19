@@ -691,6 +691,12 @@ const PJ_LABELS={b0:'Batch 0',b1ps:'B1 PS',b1nps:'B1 NPS',ct:'Ch.Typo',b2ps:'B2 
 const BASE_MAP={};
 BASE_SITES.forEach(r=>{BASE_MAP[r[0]]=r;});
 
+/* Escape user-supplied text before it goes into innerHTML (site names, notes, etc. are shared
+   live via Firebase, so unescaped values would be a stored-XSS hole for every viewer). */
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+}
+
 /* ══ State ══ */
 let DB=null, states={}, projStates={}, customCols=[], customColVals={}, customSites={};
 let selId=null, curSt='none', ovSd='id', ovAsc=true;
@@ -1024,9 +1030,9 @@ function renderOv(){
   setV('oPg',rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length);
   setV('oDn',rows.filter(r=>(states[r[0]]?.status||'none')==='done').length);
   setV('oBl',rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length);
-  setV('oD2',rows.filter(r=>r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0]))).length);
-  setV('oOut',rows.filter(r=>r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0]))).length);
-  setV('oRel',rows.filter(r=>r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0]))).length);
+  setV('oD2',rows.filter(r=>r[18]||_inStaticActive(r[0],'d2')).length);
+  setV('oOut',rows.filter(r=>r[19]||_inStaticActive(r[0],'out')).length);
+  setV('oRel',rows.filter(r=>r[20]||_inStaticActive(r[0],'rel')).length);
   const rcEl=document.getElementById('ovRc');if(rcEl)rcEl.textContent=rows.length+' sites shown';
   const nr=document.getElementById('ovNr');if(nr)nr.style.display=rows.length?'none':'block';
   const tbody=document.getElementById('ovBody');
@@ -1038,16 +1044,16 @@ function renderOv(){
     return `<tr onclick="openSite('${r[0]}')">
       <td><span class="st-dot sd-${ts}"></span></td>
       <td style="font-weight:700;color:#1a3c5e;font-size:.83rem">${r[0]}</td>
-      <td>${r[1]||'&mdash;'}</td><td style="color:#556">${r[2]||'&mdash;'}</td>
-      <td style="color:#556">${r[3]||r[12]||'&mdash;'}</td>
+      <td>${escapeHtml(r[1])||'&mdash;'}</td><td style="color:#556">${escapeHtml(r[2])||'&mdash;'}</td>
+      <td style="color:#556">${escapeHtml(r[3]||r[12])||'&mdash;'}</td>
       <td><span class="${tpC(r[10])}">${r[10]||'&mdash;'}</span></td>
       <td>${r[17]?`<span class="rx-yes">&#10003;&nbsp;${r[17]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
       <td class="chk">${ovPjSym(r[0],r[4],'b0')}</td><td class="chk">${ovPjSym(r[0],r[5],'b1ps')}</td><td class="chk">${ovPjSym(r[0],r[6],'b1nps')}</td>
       <td class="chk">${ovPjSym(r[0],r[7],'ct')}</td><td class="chk">${ovPjSym(r[0],r[8],'b2ps')}</td>
       <td>${r[14]?`<span class="p0-yes">Resizing&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk">${ovPjSym(r[0],r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])),'d2')}</td>
-      <td class="chk">${ovPjSym(r[0],r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0])),'out')}</td>
-      <td class="chk">${ovPjSym(r[0],r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0])),'rel')}</td>
+      <td class="chk">${ovPjSym(r[0],r[18]||_inStaticActive(r[0],'d2'),'d2')}</td>
+      <td class="chk">${ovPjSym(r[0],r[19]||_inStaticActive(r[0],'out'),'out')}</td>
+      <td class="chk">${ovPjSym(r[0],r[20]||_inStaticActive(r[0],'rel'),'rel')}</td>
       <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
       ${cCells}
       <td style="font-size:.77rem;color:#445">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span> ':''} ${s.assignee||''}</td>
@@ -1329,15 +1335,15 @@ function renderList(){
     if(r[6])tags.push(`<span class="tag tag-b" style="${pjTagStyle(_sid,'b1nps')}">B1NPS${pjTagSuffix(_sid,'b1nps')}</span>`);
     if(r[7])tags.push(`<span class="tag tag-b" style="${pjTagStyle(_sid,'ct')}">CT${pjTagSuffix(_sid,'ct')}</span>`);
     if(r[8])tags.push(`<span class="tag tag-b" style="${pjTagStyle(_sid,'b2ps')}">B2PS${pjTagSuffix(_sid,'b2ps')}</span>`);
-    if(r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(_sid)))tags.push(`<span class="tag tag-rx" style="${pjTagStyle(_sid,'rx')}">${r[17]||'Recapex'}${pjTagSuffix(_sid,'rx')}</span>`);
-    if(r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(_sid)))tags.push(`<span class="tag tag-p0" style="${pjTagStyle(_sid,'p0')}">Resizing${pjTagSuffix(_sid,'p0')}</span>`);
-    if(r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(_sid)))tags.push(`<span class="tag" style="background:#ede9fe;color:#4c1d95;${pjTagStyle(_sid,'d2')}">D2${pjTagSuffix(_sid,'d2')}</span>`);
-    if(r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(_sid)))tags.push(`<span class="tag" style="background:#fff3e0;color:#e67e22;${pjTagStyle(_sid,'out')}">OUT${pjTagSuffix(_sid,'out')}</span>`);
-    if(r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(_sid)))tags.push(`<span class="tag" style="background:#f3e8ff;color:#8e44ad;${pjTagStyle(_sid,'rel')}">REL${pjTagSuffix(_sid,'rel')}</span>`);
+    if(r[16]||_inSA(_sid,'rx'))tags.push(`<span class="tag tag-rx" style="${pjTagStyle(_sid,'rx')}">${r[17]||'Recapex'}${pjTagSuffix(_sid,'rx')}</span>`);
+    if(r[14]||_inSA(_sid,'p0'))tags.push(`<span class="tag tag-p0" style="${pjTagStyle(_sid,'p0')}">Resizing${pjTagSuffix(_sid,'p0')}</span>`);
+    if(r[18]||_inSA(_sid,'d2'))tags.push(`<span class="tag" style="background:#ede9fe;color:#4c1d95;${pjTagStyle(_sid,'d2')}">D2${pjTagSuffix(_sid,'d2')}</span>`);
+    if(r[19]||_inSA(_sid,'out'))tags.push(`<span class="tag" style="background:#fff3e0;color:#e67e22;${pjTagStyle(_sid,'out')}">OUT${pjTagSuffix(_sid,'out')}</span>`);
+    if(r[20]||_inSA(_sid,'rel'))tags.push(`<span class="tag" style="background:#f3e8ff;color:#8e44ad;${pjTagStyle(_sid,'rel')}">REL${pjTagSuffix(_sid,'rel')}</span>`);
     return `<div class="si${r[0]===selId?' active':''}" onclick="selectSite('${r[0]}')">
       <span class="st-dot sd-${st}"></span>
       <div class="si-info"><div class="si-id">${r[0]}</div>
-        <div class="si-sub">${r[1]||'—'} &middot; ${r[2]||'—'}</div>
+        <div class="si-sub">${escapeHtml(r[1])||'—'} &middot; ${escapeHtml(r[2])||'—'}</div>
         ${tags.length?`<div class="si-tags">${tags.join('')}</div>`:''}
       </div>
       <div class="si-r">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span><br>':''} ${s.assignee||''}<br><span style="font-size:.68rem">${s.followup||''}</span></div>
@@ -1382,14 +1388,15 @@ function selectSite(id){
   if(r[6])tags.push('<span class="badge tag-b">B1 NPS</span>');
   if(r[7])tags.push('<span class="badge tag-b">Ch. Typo</span>');
   if(r[8])tags.push('<span class="badge tag-b">B2 PS</span>');
-  if(r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))tags.push(`<span class="badge tag-rx">&#10003; ${r[17]||'Recapex'}</span>`);
-  if(r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))tags.push(`<span class="badge tag-p0">Resizing: ${r[15]}</span>`);
-  if(r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))tags.push('<span class="badge" style="background:#ede9fe;color:#4c1d95">D2 Recapex</span>');
-  if(r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0])))tags.push('<span class="badge" style="background:#fff3e0;color:#e67e22">Outdoorisation</span>');
-  if(r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0])))tags.push('<span class="badge" style="background:#f3e8ff;color:#8e44ad">Relocalisation</span>');
+  var _inActive=function(pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(r[0])&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(r[0])));};
+  if(r[16]||_inActive('rx'))tags.push(`<span class="badge tag-rx">&#10003; ${escapeHtml(r[17])||'Recapex'}</span>`);
+  if(r[14]||_inActive('p0'))tags.push(`<span class="badge tag-p0">Resizing: ${escapeHtml(r[15])}</span>`);
+  if(r[18]||_inActive('d2'))tags.push('<span class="badge" style="background:#ede9fe;color:#4c1d95">D2 Recapex</span>');
+  if(r[19]||_inActive('out'))tags.push('<span class="badge" style="background:#fff3e0;color:#e67e22">Outdoorisation</span>');
+  if(r[20]||_inActive('rel'))tags.push('<span class="badge" style="background:#f3e8ff;color:#8e44ad">Relocalisation</span>');
   document.getElementById('detHead').innerHTML=`
     <div class="dh-id">${r[0]}</div>
-    <div class="dh-nm">${r[1]||'—'} &middot; ${r[2]||'—'} &middot; Zone ${r[3]||r[12]||'—'}</div>
+    <div class="dh-nm">${escapeHtml(r[1])||'—'} &middot; ${escapeHtml(r[2])||'—'} &middot; Zone ${escapeHtml(r[3]||r[12])||'—'}</div>
     <div class="dh-tags"><span class="badge ${tpC(r[10])}">${r[10]||'—'}</span>${tags.join('')}
       <span style="font-size:.72rem;color:#667;margin-left:3px">${r[9]} project${r[9]!==1?'s':''}</span></div>`;
   const stOpts=[['none','No Status'],['progress','In Progress'],['done','Done'],['blocked','Blocked'],['review','Under Review']];
@@ -1424,23 +1431,28 @@ function selectSite(id){
   loadHist(id);renderList();refreshProjStatus();
 }
 
+let _histRef=null, _histCb=null;
 function loadHist(id){
   if(!DB)return;
-  DB.ref(`/updates/${id}`).orderByChild('ts').limitToLast(30).on('value',snap=>{
+  if(_histRef&&_histCb){_histRef.off('value',_histCb);_histRef=null;_histCb=null;}
+  const ref=DB.ref(`/updates/${id}`).orderByChild('ts').limitToLast(30);
+  const cb=snap=>{
     const el=document.getElementById('histEl');if(!el||selId!==id)return;
     const items=[];
     snap.forEach(c=>items.unshift(c.val()));
     if(!items.length){el.innerHTML='<div class="no-hist">No updates yet.</div>';return;}
     el.innerHTML=items.map(h=>`
       <div class="he${h.status&&h.status!=='none'?' st-'+h.status:''}">
-        <div class="hm"><span class="ha">${h.author||'?'}</span><span class="ht">${(h.ts||'').replace('T',' ').slice(0,16)}</span>
+        <div class="hm"><span class="ha">${escapeHtml(h.author||'?')}</span><span class="ht">${escapeHtml((h.ts||'').replace('T',' ').slice(0,16))}</span>
           ${h.status?`<span class="hs" style="background:${STCOL[h.status]}22;color:${STCOL[h.status]}">${STLBL[h.status]}</span>`:''}
         </div>
-        ${h.project?`<div style="margin-bottom:3px"><span class="${h.project==='all_done'?'tag-pj-done':'tag-pj'}">${h.project==='all_done'?'&#10003;':'&#127991;'} ${PJ_LABELS[h.project]||h.project}</span></div>`:''}
-        ${h.note?`<div class="hn">${h.note}</div>`:''}
-        ${h.assignee||h.followup?`<div class="hd">${h.assignee?'&#128100; '+h.assignee:''}${h.assignee&&h.followup?' &middot; ':''}${h.followup?'&#128197; '+h.followup:''}</div>`:''}
+        ${h.project?`<div style="margin-bottom:3px"><span class="${h.project==='all_done'?'tag-pj-done':'tag-pj'}">${h.project==='all_done'?'&#10003;':'&#127991;'} ${escapeHtml(PJ_LABELS[h.project]||h.project)}</span></div>`:''}
+        ${h.note?`<div class="hn">${escapeHtml(h.note)}</div>`:''}
+        ${h.assignee||h.followup?`<div class="hd">${h.assignee?'&#128100; '+escapeHtml(h.assignee):''}${h.assignee&&h.followup?' &middot; ':''}${h.followup?'&#128197; '+escapeHtml(h.followup):''}</div>`:''}
       </div>`).join('');
-  });
+  };
+  ref.on('value',cb);
+  _histRef=ref;_histCb=cb;
 }
 
 function refreshProjStatus(){
@@ -1457,7 +1469,7 @@ function refreshProjStatus(){
     {key:'out',label:'Outdoorisation',idx:19},{key:'rel',label:'Relocalisation',idx:20}
   ];
   pjDef.forEach(function(p){
-    if(r[p.idx]||(STATIC_PROJ_SITES[p.key]&&STATIC_PROJ_SITES[p.key].has(selId))) activePjs.push(p);
+    if(r[p.idx]||(STATIC_PROJ_SITES[p.key]&&STATIC_PROJ_SITES[p.key].has(selId)&&!(_removedFromProj[p.key]&&_removedFromProj[p.key].has(selId)))) activePjs.push(p);
   });
   if(!activePjs.length){el.innerHTML='<span style="color:#aaa;font-size:.8rem">No projects assigned.</span>';return;}
   const ps=projStates[selId]||{};
@@ -1565,7 +1577,10 @@ let curProjKey=null;
 const projEquipMeta={}; // key -> [{col_key,display_name,order}]
 const projEquipVals={}; // key -> {site_id: {col_key: val}}
 const projListeners=new Set();
+const projMetaListeners=new Set();
 const _removedFromProj={}; // projKey -> Set of site IDs removed from that project
+// Shared helper: is site still active in project pk per the static list, honoring tombstones?
+function _expActive(sid,pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(sid)&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(sid)));}
 
 function showProjPage(key){
   curProjKey=key;
@@ -1579,14 +1594,23 @@ function showProjPage(key){
   ['tabOgOv','tabOgSites'].forEach(id=>{const t=document.getElementById(id);if(t)t.classList.remove('active');});
   document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
   const tb=document.getElementById(proj.tabId);if(tb)tb.classList.add('active');
-  if(DB&&!projListeners.has(key)){
-    projListeners.add(key);
+  // Meta (custom/imported equipment columns) has its own guard Set, separate from projListeners
+  // (which the eager equip_vals loader in listenData() already marks for every project on page
+  // load). Without this split, this /equip_meta listener was never actually attached — imported
+  // columns and column deletions never rendered.
+  if(DB&&!projMetaListeners.has(key)){
+    projMetaListeners.add(key);
     DB.ref('/equip_meta/'+key).on('value',snap=>{
       const d=snap.val()||{};
       var fbMeta=Object.values(d).sort((a,b)=>(a.order||0)-(b.order||0));
-      projEquipMeta[key]=(STATIC_EQUIP[key]&&STATIC_EQUIP[key].meta)||fbMeta;
+      var staticMeta=(STATIC_EQUIP[key]&&STATIC_EQUIP[key].meta)||[];
+      var staticKeys=new Set(staticMeta.map(c=>c.col_key));
+      projEquipMeta[key]=staticMeta.concat(fbMeta.filter(c=>!staticKeys.has(c.col_key)));
       if(curProjKey===key){buildProjThead();renderProjTable();}
     });
+  }
+  if(DB&&!projListeners.has(key)){
+    projListeners.add(key);
     DB.ref('/equip_vals/'+key).on('value',snap=>{
       var fbVals=snap.val()||{};
       var staticVals=Object.assign({},(STATIC_EQUIP[key]&&STATIC_EQUIP[key].vals)||{});
@@ -1595,9 +1619,8 @@ function showProjPage(key){
       projEquipVals[key]=Object.assign({},staticVals,fbVals);
       if(curProjKey===key)renderProjTable();
     });
-  } else {
-    buildProjThead(); renderProjTable();
   }
+  buildProjThead(); renderProjTable();
 }
 
 // Extra base columns per project (beyond id/name/region/zone/energy)
@@ -1682,9 +1705,9 @@ function renderProjTable(){
     return '<tr'+sel+' onclick="openPjDetail(this.dataset.id)" data-id="'+r[0]+'" style="cursor:pointer">'
       +'<td><span class="st-dot sd-'+st+'"></span></td>'
       +'<td style="font-weight:700;color:#1a3c5e;font-size:.83rem">'+r[0]+'</td>'
-      +'<td>'+(r[1]||'—')+'</td>'
-      +'<td style="color:#556">'+(r[2]||'—')+'</td>'
-      +'<td style="color:#556">'+(r[3]||r[12]||'—')+'</td>'
+      +'<td>'+(escapeHtml(r[1])||'—')+'</td>'
+      +'<td style="color:#556">'+(escapeHtml(r[2])||'—')+'</td>'
+      +'<td style="color:#556">'+(escapeHtml(r[3]||r[12])||'—')+'</td>'
       +'<td><span class="'+tpC(r[10])+'">'+( r[10]||'—')+'</span></td>'
       +extraCells
       +eqCells
@@ -1785,16 +1808,24 @@ function openPjDetail(id){
   const proj=ALL_PROJS.find(p=>p.key===curProjKey);
   document.getElementById('pjDetTitle').innerHTML=
     '<span style="font-size:.72rem;color:'+proj.color+';margin-right:6px">'+proj.label+'</span>'
-    +id+'<span style="font-weight:400;color:#667;margin-left:6px;font-size:.8rem">'+(r?r[1]:'')+'</span>';
+    +id+'<span style="font-weight:400;color:#667;margin-left:6px;font-size:.8rem">'+(r?escapeHtml(r[1]):'')+'</span>';
   renderPjDetailBody();
   // Listen to updates for this site
-  if(DB)DB.ref('/updates/'+id).orderByChild('ts').limitToLast(30).on('value',function(){renderPjDetailBody();});
+  if(_pjHistRef&&_pjHistCb){_pjHistRef.off('value',_pjHistCb);_pjHistRef=null;_pjHistCb=null;}
+  if(DB){
+    const ref=DB.ref('/updates/'+id).orderByChild('ts').limitToLast(30);
+    const cb=function(){renderPjDetailBody();};
+    ref.on('value',cb);
+    _pjHistRef=ref;_pjHistCb=cb;
+  }
 }
+let _pjHistRef=null, _pjHistCb=null;
 
 function closePjDetail(){
   pjSelId=null;
   document.getElementById('pjDetail').style.display='none';
   document.querySelectorAll('#pjBody tr').forEach(function(tr){tr.classList.remove('pj-row-sel');});
+  if(_pjHistRef&&_pjHistCb){_pjHistRef.off('value',_pjHistCb);_pjHistRef=null;_pjHistCb=null;}
 }
 
 function renderPjDetailBody(){
@@ -1827,9 +1858,9 @@ function renderPjDetailBody(){
               +'<span style="font-weight:700;color:'+( stColors[u.status]||'#94a3b8')+'">'+( STLBL[u.status]||u.status||'—')+'</span>'
               +'<span style="color:#889">'+d+'</span>'
             +'</div>'
-            +(u.project?'<span style="background:#f0f4ff;color:#3b4dbf;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-right:4px">'+u.project+'</span>':'')
-            +(u.author?'<span style="color:#556">'+u.author+'</span>':'')
-            +(u.note?'<div style="margin-top:4px;color:#334;border-top:1px solid #f0f0f0;padding-top:4px">'+u.note+'</div>':'')
+            +(u.project?'<span style="background:#f0f4ff;color:#3b4dbf;border-radius:3px;padding:1px 5px;font-size:.7rem;margin-right:4px">'+escapeHtml(PJ_LABELS[u.project]||u.project)+'</span>':'')
+            +(u.author?'<span style="color:#556">'+escapeHtml(u.author)+'</span>':'')
+            +(u.note?'<div style="margin-top:4px;color:#334;border-top:1px solid #f0f0f0;padding-top:4px">'+escapeHtml(u.note)+'</div>':'')
             +'</div>';
         }).join('');
       }
@@ -1858,8 +1889,8 @@ function renderPjDetailBody(){
     +'<div class="det-section">'
       +'<div class="det-label">Site Information</div>'
       +'<div class="det-row">'
-        +'<div class="det-field"><div class="det-label">Region</div><div class="det-val">'+(r[2]||'—')+'</div></div>'
-        +'<div class="det-field"><div class="det-label">Zone</div><div class="det-val">'+(r[3]||r[12]||'—')+'</div></div>'
+        +'<div class="det-field"><div class="det-label">Region</div><div class="det-val">'+(escapeHtml(r[2])||'—')+'</div></div>'
+        +'<div class="det-field"><div class="det-label">Zone</div><div class="det-val">'+(escapeHtml(r[3]||r[12])||'—')+'</div></div>'
       +'</div>'
       +'<div class="det-row">'
         +'<div class="det-field"><div class="det-label">Energy</div><div class="det-val '+(r[10]?tpC(r[10]):'')+'">'+( r[10]||'—')+'</div></div>'
@@ -4258,12 +4289,12 @@ function exportOv(){
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
     if(px&&!r[0].startsWith(px+'_'))return false;
-    if(pj&&!r[PM[pj]]&&!(STATIC_PROJ_SITES[pj]&&STATIC_PROJ_SITES[pj].has(r[0])))return false;
+    if(pj&&!r[PM[pj]]&&!_expActive(r[0],pj))return false;
     if(en&&r[10]!==en)return false;
     if(st&&(states[r[0]]?.status||'none')!==st)return false;
     if(rxp&&r[17]!==rxp)return false;
     if(ocp&&(states[r[0]]?.project||'')!==ocp)return false;
-    if(d2f==='1'&&!r[18]&&!(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))return false;
+    if(d2f==='1'&&!r[18]&&!_expActive(r[0],'d2'))return false;
     return true;
   });
   var hdr=['Site ID','Site Name','Region','Zone','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','P0','D2 Recap','Outdoorisation','Relocalisation','Status','Assignee','Tagged Project','Follow-up'];
@@ -4272,16 +4303,16 @@ function exportOv(){
     var s=states[r[0]]||{};
     rows.push([
       r[0],r[1]||'',r[2]||'',r[3]||'',
-      (r[4]||(STATIC_PROJ_SITES.b0&&STATIC_PROJ_SITES.b0.has(r[0])))?'Yes':'',
-      (r[5]||(STATIC_PROJ_SITES.b1ps&&STATIC_PROJ_SITES.b1ps.has(r[0])))?'Yes':'',
-      (r[6]||(STATIC_PROJ_SITES.b1nps&&STATIC_PROJ_SITES.b1nps.has(r[0])))?'Yes':'',
-      (r[7]||(STATIC_PROJ_SITES.ct&&STATIC_PROJ_SITES.ct.has(r[0])))?'Yes':'',
-      (r[8]||(STATIC_PROJ_SITES.b2ps&&STATIC_PROJ_SITES.b2ps.has(r[0])))?'Yes':'',
-      (r[16]||(STATIC_PROJ_SITES.rx&&STATIC_PROJ_SITES.rx.has(r[0])))?'Yes':'',
-      (r[14]||(STATIC_PROJ_SITES.p0&&STATIC_PROJ_SITES.p0.has(r[0])))?'Yes':'',
-      (r[18]||(STATIC_PROJ_SITES.d2&&STATIC_PROJ_SITES.d2.has(r[0])))?'Yes':'',
-      (r[19]||(STATIC_PROJ_SITES.out&&STATIC_PROJ_SITES.out.has(r[0])))?'Yes':'',
-      (r[20]||(STATIC_PROJ_SITES.rel&&STATIC_PROJ_SITES.rel.has(r[0])))?'Yes':'',
+      (r[4]||_expActive(r[0],'b0'))?'Yes':'',
+      (r[5]||_expActive(r[0],'b1ps'))?'Yes':'',
+      (r[6]||_expActive(r[0],'b1nps'))?'Yes':'',
+      (r[7]||_expActive(r[0],'ct'))?'Yes':'',
+      (r[8]||_expActive(r[0],'b2ps'))?'Yes':'',
+      (r[16]||_expActive(r[0],'rx'))?'Yes':'',
+      (r[14]||_expActive(r[0],'p0'))?'Yes':'',
+      (r[18]||_expActive(r[0],'d2'))?'Yes':'',
+      (r[19]||_expActive(r[0],'out'))?'Yes':'',
+      (r[20]||_expActive(r[0],'rel'))?'Yes':'',
       STLBL[s.status||'none']||'',
       s.assignee||'',
       PJ_LABELS[s.project]||s.project||'',
@@ -4300,7 +4331,7 @@ function exportTracker(){
   var filtered=SITES.filter(function(r){
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
-    if(fp&&!r[PM[fp]]&&!(STATIC_PROJ_SITES[fp]&&STATIC_PROJ_SITES[fp].has(r[0])))return false;
+    if(fp&&!r[PM[fp]]&&!_expActive(r[0],fp))return false;
     if(fs&&(states[r[0]]?.status||'none')!==fs)return false;
     if(fa&&(states[r[0]]?.assignee||'')!==fa)return false;
     if(fcp&&(states[r[0]]?.project||'')!==fcp)return false;
@@ -4310,7 +4341,7 @@ function exportTracker(){
   var rows=[hdr];
   filtered.forEach(function(r){
     var s=states[r[0]]||{};
-    var projs=ALL_PROJS.filter(function(p){return r[p.idx]||(STATIC_PROJ_SITES[p.key]&&STATIC_PROJ_SITES[p.key].has(r[0]));}).map(function(p){return p.label;});
+    var projs=ALL_PROJS.filter(function(p){return r[p.idx]||_expActive(r[0],p.key);}).map(function(p){return p.label;});
     rows.push([r[0],r[1]||'',r[2]||'',r[3]||'',projs.join(', '),STLBL[s.status||'none']||'',s.assignee||'',PJ_LABELS[s.project]||s.project||'',s.followup||'']);
   });
   _downloadXlsx(rows,'Tracker_Export.xlsx');
@@ -4329,7 +4360,7 @@ function exportProjPage(){
   var rows=[hdr];
   SITES.filter(function(r){
     if(!r||!r[0])return false;
-    if(!r[proj.idx]&&!(STATIC_PROJ_SITES[key]&&STATIC_PROJ_SITES[key].has(r[0])))return false;
+    if(!r[proj.idx]&&!_expActive(r[0],key))return false;
     if(fq&&!(r[0].toLowerCase().includes(fq)||(r[1]||'').toLowerCase().includes(fq)))return false;
     var sd=states[r[0]]||{};
     if(fst&&(sd.status||'none')!==fst)return false;
