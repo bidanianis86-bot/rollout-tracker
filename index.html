@@ -4970,6 +4970,66 @@ function saveNewOgSite(){
     alert('OG Site '+sid+' added! It now appears in OG Sites and OG Overview.');
   }).catch(function(e){ err.textContent='Firebase error: '+e.message; err.style.display='block'; });
 }
+
+/* ═══ EDIT OG SITE ═══ */
+function openEditOgSite(sid){
+  var isStatic=!!STATIC_EQUIP_OG_VALS[sid];
+  var eq=Object.assign({},STATIC_EQUIP_OG_VALS[sid]||{});
+  if(ogCustomSites[sid]&&!ogCustomSites[sid]._hidden){
+    ['site_name','og_year','typo_contractuelle','typo_installee','batch','puissance_w','type'].forEach(function(k){
+      if(ogCustomSites[sid][k]!==undefined)eq[k]=ogCustomSites[sid][k];
+    });
+  }
+  var dispId=sid.includes('__')?sid.split('__')[0]:sid;
+  document.getElementById('eoOrigSid').value=sid;
+  document.getElementById('eoIsStatic').value=isStatic?'1':'0';
+  document.getElementById('eoSiteId').value=dispId;
+  document.getElementById('eoSiteName').value=eq.site_name||dispId;
+  document.getElementById('eoOgYear').value=eq.og_year||'OG26';
+  document.getElementById('eoPuissance').value=eq.puissance_w||'';
+  document.getElementById('eoTypoC').value=eq.typo_contractuelle||'';
+  document.getElementById('eoTypoI').value=eq.typo_installee||'';
+  document.getElementById('eoBatch').value=eq.batch||'';
+  document.getElementById('eoType').value=eq.type||'Outdoor';
+  document.getElementById('eoSiteErr').style.display='none';
+  document.getElementById('editOgSiteModal').classList.remove('hidden');
+}
+function closeEditOgSite(){ document.getElementById('editOgSiteModal').classList.add('hidden'); }
+function saveEditOgSite(){
+  var origSid=document.getElementById('eoOrigSid').value;
+  var newSid=document.getElementById('eoSiteId').value.trim();
+  var isStatic=document.getElementById('eoIsStatic').value==='1';
+  var err=document.getElementById('eoSiteErr');
+  err.style.display='none';
+  if(!newSid){err.textContent='Site ID is required.';err.style.display='block';return;}
+  if(!DB){err.textContent='Firebase not connected.';err.style.display='block';return;}
+  if(newSid!==origSid){
+    var exists=!!STATIC_EQUIP_OG_VALS[newSid]||(!!ogCustomSites[newSid]&&!ogCustomSites[newSid]._hidden);
+    if(exists){err.textContent='Site ID "'+newSid+'" already exists.';err.style.display='block';return;}
+  }
+  var data={
+    site_name:document.getElementById('eoSiteName').value.trim()||newSid,
+    og_year:document.getElementById('eoOgYear').value,
+    typo_contractuelle:document.getElementById('eoTypoC').value,
+    typo_installee:document.getElementById('eoTypoI').value,
+    batch:document.getElementById('eoBatch').value,
+    puissance_w:document.getElementById('eoPuissance').value,
+    type:document.getElementById('eoType').value,
+    updated_at:Date.now()
+  };
+  var upd={};
+  if(newSid!==origSid){
+    upd['/og_custom_sites/'+newSid]=data;
+    var oldState=ogStates[origSid]||null;
+    if(oldState){upd['/og_states/'+newSid]=oldState;upd['/og_states/'+origSid]=null;}
+    upd['/og_custom_sites/'+origSid]=isStatic?{_hidden:true}:null;
+  } else {
+    upd['/og_custom_sites/'+origSid]=data;
+  }
+  DB.ref().update(upd).then(function(){
+    closeEditOgSite();
+  }).catch(function(e){err.textContent='Firebase error: '+e.message;err.style.display='block';});
+}
 </script>
 </
 <!-- ADD SITE MODAL -->
@@ -5100,6 +5160,61 @@ function saveNewOgSite(){
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn" onclick="closeAddOgSite()">Cancel</button>
       <button class="btn btn-primary" style="background:#0f766e;border-color:#0f766e" onclick="saveNewOgSite()">&#10003; Save OG Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT OG SITE MODAL -->
+<div id="editOgSiteModal" class="overlay hidden" style="z-index:2000">
+  <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:580px;width:95%;box-shadow:0 8px 40px #0003;position:relative">
+    <button onclick="closeEditOgSite()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#667">&times;</button>
+    <h3 style="margin:0 0 18px;color:#0f766e;font-size:1rem">&#9998; Edit OG Site</h3>
+    <input type="hidden" id="eoOrigSid">
+    <input type="hidden" id="eoIsStatic">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site ID <span style="color:#ef4444">*</span></label>
+        <input id="eoSiteId" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Site Name</label>
+        <input id="eoSiteName" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">OG Batch</label>
+        <select id="eoOgYear" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="OG26">OG26</option>
+          <option value="OG25">OG25</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Puissance (W)</label>
+        <input id="eoPuissance" placeholder="e.g. 4000" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Typo Contractuelle</label>
+        <input id="eoTypoC" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Typo Install&#233;e</label>
+        <input id="eoTypoI" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Batch</label>
+        <input id="eoBatch" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.78rem;font-weight:600;color:#334155;display:block;margin-bottom:4px">Type</label>
+        <select id="eoType" style="width:100%;padding:7px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.85rem;background:#fff;box-sizing:border-box">
+          <option value="Outdoor">Outdoor</option>
+          <option value="Indoor">Indoor</option>
+        </select>
+      </div>
+    </div>
+    <div id="eoSiteErr" style="color:#ef4444;font-size:.8rem;display:none;margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" onclick="closeEditOgSite()">Cancel</button>
+      <button class="btn btn-primary" style="background:#0f766e;border-color:#0f766e" onclick="saveEditOgSite()">&#10003; Save Changes</button>
     </div>
   </div>
 </div>
