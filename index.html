@@ -652,6 +652,7 @@ __dbg('DOM ready, awaiting script...');
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e">Status</th>
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e">Assignee</th>
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e">Follow-up</th>
+        <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e"></th>
       </tr></thead>
       <tbody id="ogSitesBody"></tbody>
     </table>
@@ -4659,6 +4660,7 @@ function renderOgSites(){
       '</select></td>',
       '<td><input type="text" value="'+as+'" data-sid="'+sid+'" onchange="updateOgAssignee(this.dataset.sid,this.value)" placeholder="Assignee" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 6px;width:90px"></td>',
       '<td><input type="date" value="'+fu+'" data-sid="'+sid+'" onchange="updateOgFollowup(this.dataset.sid,this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>',
+      '<td><button onclick="openEditOgSite(\''+sid+'\');" style="background:none;border:1px solid #c0cfe0;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:.8rem;color:#0f766e;font-weight:600" title="Edit">&#9998;</button></td>',
       '</tr>'
     ].join('');
   }).join('');
