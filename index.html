@@ -4574,10 +4574,18 @@ function showOgPage(view) {
 const OG_STLBL={none:'No Status',progress:'In Progress',done:'Done',blocked:'Blocked',review:'Under Review'};
 
 function getOgSites(yrFilter, stFilter, q){
-  // Merge static OG vals with custom-added OG sites
+  // Merge static OG vals with custom-added OG sites; ogCustomSites can hide or override static
   var allOg = Object.assign({}, STATIC_EQUIP_OG_VALS);
   Object.entries(ogCustomSites).forEach(function([sid,r]){
-    if(!allOg[sid]) allOg[sid] = {og_year:r.og_year||'OG26', typo_contractuelle:r.typo_contractuelle||'', typo_installee:r.typo_installee||'', batch:r.batch||'', puissance_w:r.puissance_w||'', type:r.type||'', site_name:r.site_name||sid};
+    if(r&&r._hidden){ delete allOg[sid]; return; } // hidden after ID rename
+    if(allOg[sid]){
+      // Override static fields with custom edits
+      var ov={};
+      ['site_name','og_year','typo_contractuelle','typo_installee','batch','puissance_w','type'].forEach(function(k){if(r[k]!==undefined&&r[k]!==null)ov[k]=r[k];});
+      allOg[sid]=Object.assign({},allOg[sid],ov);
+    } else {
+      allOg[sid]={og_year:r.og_year||'OG26',typo_contractuelle:r.typo_contractuelle||'',typo_installee:r.typo_installee||'',batch:r.batch||'',puissance_w:r.puissance_w||'',type:r.type||'',site_name:r.site_name||sid};
+    }
   });
   return Object.entries(allOg).filter(([sid, eq])=>{
     if(yrFilter && eq.og_year!==yrFilter) return false;
@@ -4999,13 +5007,16 @@ function openEditOgSite(sid){
 function closeEditOgSite(){ document.getElementById('editOgSiteModal').classList.add('hidden'); }
 function saveEditOgSite(){
   var origSid=document.getElementById('eoOrigSid').value;
+  // origSid may have __suffix; compare using display ID to avoid false conflicts
+  var origDispId=origSid.includes('__')?origSid.split('__')[0]:origSid;
   var newSid=document.getElementById('eoSiteId').value.trim();
   var isStatic=document.getElementById('eoIsStatic').value==='1';
   var err=document.getElementById('eoSiteErr');
   err.style.display='none';
   if(!newSid){err.textContent='Site ID is required.';err.style.display='block';return;}
   if(!DB){err.textContent='Firebase not connected.';err.style.display='block';return;}
-  if(newSid!==origSid){
+  var idChanged=(newSid!==origDispId);
+  if(idChanged){
     var exists=!!STATIC_EQUIP_OG_VALS[newSid]||(!!ogCustomSites[newSid]&&!ogCustomSites[newSid]._hidden);
     if(exists){err.textContent='Site ID "'+newSid+'" already exists.';err.style.display='block';return;}
   }
@@ -5020,7 +5031,7 @@ function saveEditOgSite(){
     updated_at:Date.now()
   };
   var upd={};
-  if(newSid!==origSid){
+  if(idChanged){
     upd['/og_custom_sites/'+newSid]=data;
     var oldState=ogStates[origSid]||null;
     if(oldState){upd['/og_states/'+newSid]=oldState;upd['/og_states/'+origSid]=null;}
