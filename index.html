@@ -879,6 +879,9 @@ function _bootstrapProjAssignments(){
 }
 function rebuildSites(){
   SITES=BASE_SITES.map(function(r){return r.slice();});
+  // Reset all project flags — BASE_SITES may have stale flags from old Excel snapshots.
+  // Authoritative sources (STATIC_EQUIP, projEquipVals, customSites) re-set them below.
+  SITES.forEach(function(r){[4,5,6,7,8,14,16,18,19,20].forEach(function(i){r[i]=0;});});
   var pjKeys={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18,out:19,rel:20};
   Object.entries(customSites).forEach(([sid,r])=>{
     if(!BASE_MAP[sid]){
