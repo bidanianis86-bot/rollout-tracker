@@ -320,6 +320,14 @@ __dbg('DOM ready, awaiting script...');
           <option value="">All Sites</option>
           <option value="1">D2 Recapex only</option>
         </select>
+        <select id="ovNbPj" onchange="renderOv()">
+          <option value=""># Projects</option>
+          <option value="1">1 Project</option>
+          <option value="2">2 Projects</option>
+          <option value="3">3 Projects</option>
+          <option value="4">4 Projects</option>
+          <option value="5+">5+ Projects</option>
+        </select>
         <button class="btn" onclick="resetOv()">Reset</button>
         <button class="btn" onclick="exportOv()">&#11015; Export Excel</button>
         <button class="btn btn-primary" onclick="openUpload()">&#128228; Upload Project File</button>
@@ -934,6 +942,9 @@ function rebuildSites(){
       if(sitesIdx[sid]!==undefined)SITES[sitesIdx[sid]][p.idx]=0;
     });
   });
+  // Recalculate r[9] (# Proj) from actual flags — BASE_SITES value is stale after flag reset
+  var _pjIdxs=[4,5,6,7,8,14,16,18,19,20];
+  SITES.forEach(function(r){r[9]=_pjIdxs.reduce(function(cnt,i){return cnt+(r[i]?1:0);},0);});
 }
 
 function showApp(){
@@ -954,7 +965,7 @@ function tpC(t){if(!t)return'tp-UNK';if(t==='SOLAIRE')return'tp-SOL';if(t.starts
 function ck(v){return v?'<span class="ck ck1">&#10003;</span>':'<span class="ck ck0">&middot;</span>';}
 function nbc(n){return n>=3?'nb3':n>=2?'nb2':'nb1';}
 function ovSort(k){if(ovSd===k)ovAsc=!ovAsc;else{ovSd=k;ovAsc=true;}renderOv();}
-function resetOv(){['ovQ','ovPfx','ovPj','ovEn','ovSt','ovRxPj'].forEach(id=>{const el=document.getElementById(id);if(el.tagName==='INPUT')el.value='';else el.selectedIndex=0;});renderOv();}
+function resetOv(){['ovQ','ovPfx','ovPj','ovEn','ovSt','ovRxPj','ovCurPj','ovD2','ovNbPj'].forEach(id=>{const el=document.getElementById(id);if(!el)return;if(el.tagName==='INPUT')el.value='';else el.selectedIndex=0;});renderOv();}
 
 function buildOvThead(){
   const cThs=customCols.map(c=>`<th class="th-custom" onclick="ovSort('cx_${c.col_key}')">${c.display_name}<span class="srt">&#8645;</span></th>`).join('');
@@ -1000,6 +1011,7 @@ function renderOv(){
   const st=document.getElementById('ovSt')?.value||'';
   const rxp=document.getElementById('ovRxPj')?.value||'';
   const ocp=document.getElementById('ovCurPj')?.value||'';
+  const nbpj=document.getElementById('ovNbPj')?.value||'';
   // Helper: check if site is in STATIC_PROJ_SITES[pk] and NOT removed from it
   var _inStaticActive=function(sid,pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(sid)&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(sid)));};
   let rows=SITES.filter(r=>{
@@ -1015,6 +1027,7 @@ function renderOv(){
     if(rxp&&r[17]!==rxp)return false;
     if(ocp&&(states[r[0]]?.project||'')!==ocp)return false;
     if(document.getElementById('ovD2')?.value==='1'&&!r[18])return false;
+    if(nbpj){var _cnt=r[9]||0;if(nbpj==='5+'?_cnt<5:_cnt!==parseInt(nbpj))return false;}
     return true;
   });
   const ki={id:0,nm:1,rg:2,zn:3,tp:10,rx:17,b0:4,b1p:5,b1n:6,ct:7,b2p:8,nb:9,p0:14,d2:18};
