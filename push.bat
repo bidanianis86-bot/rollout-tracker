@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: D2 Recapex missing from Update dropdown + Overview project filter; reset stale BASE_SITES flags" --allow-empty
+git commit -m "feat: #Proj filter in Overview; fix D2 missing from Update/Overview dropdowns; fix stale project counts" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
