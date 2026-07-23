@@ -1059,6 +1059,24 @@ function ovPjSym(sid,inProj,pkey){
   if(st==='blocked') return'<span style="color:#dc2626;font-weight:700;font-size:.9rem">&#10007;</span>';
   return'<span style="color:#9ca3af;font-size:.9rem">&#10003;</span>';
 }
+// Compute aggregate status for a site across all its active projects.
+// Priority: blocked > progress > review > done > none.
+// Falls back to global states[sid].status if no project statuses exist.
+function siteAggStatus(r){
+  var sid=r[0];
+  var ps=projStates[sid]||{};
+  var pjIdx={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,rx:16,p0:14,d2:18,out:19,rel:20};
+  var _inSA=function(pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(sid)&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(sid)));};
+  var active=Object.keys(pjIdx).filter(function(pk){return r[pjIdx[pk]]||_inSA(pk);});
+  if(!active.length)return states[sid]?.status||'none';
+  var vals=active.map(function(pk){return ps[pk]||'none';});
+  if(vals.includes('blocked'))return'blocked';
+  if(vals.includes('progress'))return'progress';
+  if(vals.includes('review'))return'review';
+  if(vals.every(function(v){return v==='done';}))return'done';
+  return'none';
+}
+
 function renderOv(){
   const q=(document.getElementById('ovQ')?.value||'').toLowerCase();
   const px=document.getElementById('ovPfx')?.value||'';
@@ -1079,7 +1097,7 @@ function renderOv(){
     if(!_hasFlag&&!_inStaticActive(r[0],'b0')&&!_inStaticActive(r[0],'b1ps')&&!_inStaticActive(r[0],'b1nps')&&!_inStaticActive(r[0],'ct')&&!_inStaticActive(r[0],'b2ps')&&!_inStaticActive(r[0],'rx')&&!_inStaticActive(r[0],'p0')&&!_inStaticActive(r[0],'d2')&&!_inStaticActive(r[0],'out')&&!_inStaticActive(r[0],'rel'))return false;
     if(pj&&!r[PM[pj]]&&!(STATIC_PROJ_SITES[pj]&&STATIC_PROJ_SITES[pj].has(r[0])&&!(_removedFromProj[pj]&&_removedFromProj[pj].has(r[0]))))return false;
     if(en&&r[10]!==en)return false;
-    if(st&&(states[r[0]]?.status||'none')!==st)return false;
+    if(st&&siteAggStatus(r)!==st)return false;
     if(rxp&&r[17]!==rxp)return false;
     if(ocp&&(states[r[0]]?.project||'')!==ocp)return false;
     if(document.getElementById('ovD2')?.value==='1'&&!r[18])return false;
@@ -1087,7 +1105,7 @@ function renderOv(){
     return true;
   });
   const ki={id:0,nm:1,rg:2,zn:3,tp:10,rx:17,b0:4,b1p:5,b1n:6,ct:7,b2p:8,nb:9,p0:14,d2:18};
-  const fn={st:r=>states[r[0]]?.status||'none',as:r=>states[r[0]]?.assignee||'',fu:r=>dateToNum(states[r[0]]?.followup)};
+  const fn={st:r=>siteAggStatus(r),as:r=>states[r[0]]?.assignee||'',fu:r=>dateToNum(states[r[0]]?.followup)};
   const fuSort=document.getElementById('ovFuSort')?.value||'';
   if(fuSort){
     // Follow-up sort: push empty dates to bottom regardless of direction
@@ -1109,9 +1127,9 @@ function renderOv(){
   setV('oT',rows.length);setV('oB0',rows.filter(r=>r[4]).length);setV('oB1p',rows.filter(r=>r[5]).length);
   setV('oB1n',rows.filter(r=>r[6]).length);setV('oCt',rows.filter(r=>r[7]).length);setV('oB2p',rows.filter(r=>r[8]).length);
   setV('oRx',rows.filter(r=>r[16]||_inStaticActive(r[0],'rx')).length);setV('oP0',rows.filter(r=>r[14]||_inStaticActive(r[0],'p0')).length);
-  setV('oPg',rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length);
-  setV('oDn',rows.filter(r=>(states[r[0]]?.status||'none')==='done').length);
-  setV('oBl',rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length);
+  setV('oPg',rows.filter(r=>siteAggStatus(r)==='progress').length);
+  setV('oDn',rows.filter(r=>siteAggStatus(r)==='done').length);
+  setV('oBl',rows.filter(r=>siteAggStatus(r)==='blocked').length);
   setV('oD2',rows.filter(r=>r[18]||_inStaticActive(r[0],'d2')).length);
   setV('oOut',rows.filter(r=>r[19]||_inStaticActive(r[0],'out')).length);
   setV('oRel',rows.filter(r=>r[20]||_inStaticActive(r[0],'rel')).length);
@@ -1120,7 +1138,7 @@ function renderOv(){
   const tbody=document.getElementById('ovBody');
   if(!tbody)return;
   tbody.innerHTML=rows.map(r=>{
-    const s=states[r[0]]||{};const ts=s.status||'none';
+    const s=states[r[0]]||{};const ts=siteAggStatus(r);
     const cx=customColVals[r[0]]||{};
     const cCells=customCols.map(c=>{const v=cx[c.col_key]||'';return v?`<td><span class="cv-yes">${v}</span></td>`:'<td><span style="color:#d1d5db">&middot;</span></td>';}).join('');
     return `<tr onclick="openSite('${r[0]}')">
@@ -1771,7 +1789,7 @@ function renderProjTable(){
     rows=SITES.filter(r=>r&&r[0]&&r[proj.idx]);
   }
   if(q)rows=rows.filter(r=>r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q));
-  if(fst)rows=rows.filter(r=>(states[r[0]]?.status||'none')===fst);
+  if(fst)rows=rows.filter(r=>(projStates[r[0]]?.[key]||'none')===fst);
   if(fuSort){
     rows=rows.slice().sort(function(a,b){
       var av=dateToNum(states[a[0]]?.followup),bv=dateToNum(states[b[0]]?.followup);
@@ -1786,9 +1804,9 @@ function renderProjTable(){
     '<div class="sc"><div class="v" style="color:'+proj.color+'">'+rows.length+'</div><div class="l">Sites</div></div>'+
     '<div class="sc"><div class="v" style="color:#10b981">'+withData+'</div><div class="l">With Equipment</div></div>'+
     '<div class="sc"><div class="v" style="color:#f59e0b">'+(rows.length-withData)+'</div><div class="l">Pending</div></div>'+
-    '<div class="sc sdk"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='done').length+'</div><div class="l">Done</div></div>'+
-    '<div class="sc spg"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length+'</div><div class="l">In Progress</div></div>'+
-    '<div class="sc sbl"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length+'</div><div class="l">Blocked</div></div>';
+    '<div class="sc sdk"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||'none')==='done').length+'</div><div class="l">Done</div></div>'+
+    '<div class="sc spg"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||'none')==='progress').length+'</div><div class="l">In Progress</div></div>'+
+    '<div class="sc sbl"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||'none')==='blocked').length+'</div><div class="l">Blocked</div></div>';
 
   const sub=document.getElementById('pjSub');
   if(sub)sub.textContent=rows.length+' sites · '+cols.length+' equip col'+(cols.length!==1?'s':'');
@@ -1796,7 +1814,7 @@ function renderProjTable(){
   buildProjThead();
   const tbody=document.getElementById('pjBody');if(!tbody)return;
   tbody.innerHTML=rows.map(function(r){
-    const s=states[r[0]]||{};const st=s.status||'none';
+    const s=states[r[0]]||{};const st=projStates[r[0]]?.[key]||'none';
     const sv=vals[r[0]]||{};
     const extraCells=extra.map(function(e){
       const v=e.get(r);
