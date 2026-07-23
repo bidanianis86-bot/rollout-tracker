@@ -328,6 +328,11 @@ __dbg('DOM ready, awaiting script...');
           <option value="4">4 Projects</option>
           <option value="5+">5+ Projects</option>
         </select>
+        <select id="ovFuSort" onchange="renderOv()">
+          <option value="">Follow-up Sort</option>
+          <option value="desc">Newest first ↓</option>
+          <option value="asc">Oldest first ↑</option>
+        </select>
         <button class="btn" onclick="resetOv()">Reset</button>
         <button class="btn" onclick="exportOv()">&#11015; Export Excel</button>
         <button class="btn btn-primary" onclick="openUpload()">&#128228; Upload Project File</button>
@@ -964,8 +969,31 @@ function showApp(){
 function tpC(t){if(!t)return'tp-UNK';if(t==='SOLAIRE')return'tp-SOL';if(t.startsWith('SECTEUR+'))return'tp-MIX';if(t==='SECTEUR')return'tp-SEC';if(t.includes('GE'))return'tp-GE';return'tp-UNK';}
 function ck(v){return v?'<span class="ck ck1">&#10003;</span>':'<span class="ck ck0">&middot;</span>';}
 function nbc(n){return n>=3?'nb3':n>=2?'nb2':'nb1';}
+// Universal date formatter — handles Excel serial numbers AND YYYY-MM-DD strings → DD-MM-YYYY
+function fmtDate(v){
+  if(!v&&v!==0)return'';
+  var n=typeof v==='number'?v:parseFloat(v);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    var d=new Date(Math.round((n-25569)*86400000));
+    return String(d.getUTCDate()).padStart(2,'0')+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+d.getUTCFullYear();
+  }
+  var s=String(v).trim();
+  var p=s.split(/[-\/]/);
+  if(p.length===3&&p[0].length===4)return p[2].padStart(2,'0')+'-'+p[1].padStart(2,'0')+'-'+p[0]; // YYYY-MM-DD → DD-MM-YYYY
+  return s; // already formatted or unknown — return as-is
+}
+// Returns a sortable numeric value from a date (Excel serial or YYYY-MM-DD) — 0 if empty/invalid
+function dateToNum(v){
+  if(!v)return 0;
+  var n=typeof v==='number'?v:parseFloat(v);
+  if(!isNaN(n)&&n>40000&&n<60000)return n; // Excel serial — already numeric, directly comparable
+  var s=String(v).trim();
+  var p=s.split(/[-\/]/);
+  if(p.length===3&&p[0].length===4)return parseInt(p[0])*10000+parseInt(p[1])*100+parseInt(p[2]); // YYYYMMDD
+  return 0;
+}
 function ovSort(k){if(ovSd===k)ovAsc=!ovAsc;else{ovSd=k;ovAsc=true;}renderOv();}
-function resetOv(){['ovQ','ovPfx','ovPj','ovEn','ovSt','ovRxPj','ovCurPj','ovD2','ovNbPj'].forEach(id=>{const el=document.getElementById(id);if(!el)return;if(el.tagName==='INPUT')el.value='';else el.selectedIndex=0;});renderOv();}
+function resetOv(){['ovQ','ovPfx','ovPj','ovEn','ovSt','ovRxPj','ovCurPj','ovD2','ovNbPj','ovFuSort'].forEach(id=>{const el=document.getElementById(id);if(!el)return;if(el.tagName==='INPUT')el.value='';else el.selectedIndex=0;});renderOv();}
 
 function buildOvThead(){
   const cThs=customCols.map(c=>`<th class="th-custom" onclick="ovSort('cx_${c.col_key}')">${c.display_name}<span class="srt">&#8645;</span></th>`).join('');
@@ -1031,8 +1059,16 @@ function renderOv(){
     return true;
   });
   const ki={id:0,nm:1,rg:2,zn:3,tp:10,rx:17,b0:4,b1p:5,b1n:6,ct:7,b2p:8,nb:9,p0:14,d2:18};
-  const fn={st:r=>states[r[0]]?.status||'none',as:r=>states[r[0]]?.assignee||'',fu:r=>states[r[0]]?.followup||''};
-  if(ovSd){
+  const fn={st:r=>states[r[0]]?.status||'none',as:r=>states[r[0]]?.assignee||'',fu:r=>dateToNum(states[r[0]]?.followup)};
+  const fuSort=document.getElementById('ovFuSort')?.value||'';
+  if(fuSort){
+    // Follow-up sort: push empty dates to bottom regardless of direction
+    rows.sort((a,b)=>{
+      var av=dateToNum(states[a[0]]?.followup),bv=dateToNum(states[b[0]]?.followup);
+      if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;
+      return fuSort==='asc'?(av-bv):(bv-av);
+    });
+  } else if(ovSd){
     rows.sort((a,b)=>{
       let av,bv;
       if(ovSd.startsWith('cx_')){const ck2=ovSd.slice(3);av=(customColVals[a[0]]||{})[ck2]||'';bv=(customColVals[b[0]]||{})[ck2]||'';}
@@ -1075,7 +1111,7 @@ function renderOv(){
       <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
       ${cCells}
       <td style="font-size:.77rem;color:#445">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span> ':''} ${s.assignee||''}</td>
-      <td style="font-size:.77rem;color:#778">${s.followup||''}</td>
+      <td style="font-size:.77rem;color:#778">${fmtDate(s.followup)}</td>
     </tr>`;
   }).join('');
 }
@@ -1364,7 +1400,7 @@ function renderList(){
         <div class="si-sub">${escapeHtml(r[1])||'—'} &middot; ${escapeHtml(r[2])||'—'}</div>
         ${tags.length?`<div class="si-tags">${tags.join('')}</div>`:''}
       </div>
-      <div class="si-r">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span><br>':''} ${s.assignee||''}<br><span style="font-size:.68rem">${s.followup||''}</span></div>
+      <div class="si-r">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span><br>':''} ${s.assignee||''}<br><span style="font-size:.68rem">${fmtDate(s.followup)}</span></div>
     </div>`;
   }).join('');
 }
@@ -1466,7 +1502,7 @@ function loadHist(id){
         </div>
         ${h.project?`<div style="margin-bottom:3px"><span class="${h.project==='all_done'?'tag-pj-done':'tag-pj'}">${h.project==='all_done'?'&#10003;':'&#127991;'} ${escapeHtml(PJ_LABELS[h.project]||h.project)}</span></div>`:''}
         ${h.note?`<div class="hn">${escapeHtml(h.note)}</div>`:''}
-        ${h.assignee||h.followup?`<div class="hd">${h.assignee?'&#128100; '+escapeHtml(h.assignee):''}${h.assignee&&h.followup?' &middot; ':''}${h.followup?'&#128197; '+escapeHtml(h.followup):''}</div>`:''}
+        ${h.assignee||h.followup?`<div class="hd">${h.assignee?'&#128100; '+escapeHtml(h.assignee):''}${h.assignee&&h.followup?' &middot; ':''}${h.followup?'&#128197; '+fmtDate(h.followup):''}</div>`:''}
       </div>`).join('');
   };
   ref.on('value',cb);
@@ -1718,7 +1754,7 @@ function renderProjTable(){
       const v=sv[c.col_key]||'';
       return v?'<td><span class="pj-eq-badge">'+v+'</span></td>':'<td style="color:#d1d5db;text-align:center">&middot;</td>';
     }).join('');
-    const fu=s.followup?'<span style="color:#0369a1">'+s.followup+'</span>':'<span style="color:#ccc">—</span>';
+    const fu=s.followup?'<span style="color:#0369a1">'+fmtDate(s.followup)+'</span>':'<span style="color:#ccc">—</span>';
     const sel=pjSelId===r[0]?' class="pj-row-sel"':'';
     return '<tr'+sel+' onclick="openPjDetail(this.dataset.id)" data-id="'+r[0]+'" style="cursor:pointer">'
       +'<td><span class="st-dot sd-'+st+'"></span></td>'
@@ -1927,7 +1963,7 @@ function renderPjDetailBody(){
       +'<div class="det-label">Tracking</div>'
       +'<div class="det-row">'
         +'<div class="det-field"><div class="det-label">Assignee</div><div class="det-val">'+(s.assignee||'—')+'</div></div>'
-        +'<div class="det-field"><div class="det-label">Follow-up</div><div class="det-val">'+(s.followup||'—')+'</div></div>'
+        +'<div class="det-field"><div class="det-label">Follow-up</div><div class="det-val">'+(fmtDate(s.followup)||'—')+'</div></div>'
       +'</div>'
     +'</div>'
     // EQUIPMENT
@@ -4663,7 +4699,7 @@ function renderOgSites(){
     const nm=eq.site_name||dispId;
     const st=ogStates[sid]?.status||'none';
     const as=(ogStates[sid]?.assignee||'').replace(/"/g,'&quot;');
-    const fu=ogStates[sid]?.followup||'';
+    const fu=fmtDate(ogStates[sid]?.followup||'');
     const yr=eq.og_year||'';
     const yrbg=yr==='OG25'?'#0e7490':'#0f766e';
     return [
