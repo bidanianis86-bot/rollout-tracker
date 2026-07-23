@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "feat: follow-up sort filter on all pages (Tracker, Projects, OG Sites); date format fixes; #Proj filter; D2 fixes; site count fix" --allow-empty
+git commit -m "feat: follow-up sort all pages; fix OG Sites date picker (Firebase re-render guard); date format; #Proj filter; D2/site count fixes" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
