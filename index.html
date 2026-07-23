@@ -1510,7 +1510,7 @@ function selectSite(id){
       </div>
       <div class="fr">
         <div class="fg"><label>Assign to</label><input id="fAs" value="${s.assignee||''}" placeholder="Team member name"></div>
-        <div class="fg"><label>Follow-up date</label><input id="fDt" type="date" value="${s.followup||''}"></div>
+        <div class="fg"><label>Follow-up date</label><input id="fDt" type="date" value="${rawDateForInput(s.followup||'')}"></div>
       </div>
       <div class="fg" style="margin-top:7px"><label>Note / Comment</label><textarea id="fNt" placeholder="Add a note…"></textarea></div>
       <button class="btn-save" onclick="submitUpdate()">Save Update</button>
@@ -1587,22 +1587,30 @@ function saveProjSt(projKey, status){
   });
 }
 async function submitUpdate(){
-  const author=document.getElementById('uname').value.trim();
-  if(!author){alert('Enter your name at the top right first.');return;}
-  if(!DB){alert('Not connected to Firebase.');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;
-  const s=states[selId]||{};
-  const ts=new Date().toISOString();
-  const upd={author,status:curSt||s.status||'none',
-    project:document.getElementById('fPj').value,
-    assignee:document.getElementById('fAs').value.trim(),
-    followup:document.getElementById('fDt').value,
-    note:document.getElementById('fNt').value.trim(),ts};
-  await DB.ref(`/updates/${selId}`).push(upd);
-  await DB.ref(`/states/${selId}`).set({status:upd.status,project:upd.project,assignee:upd.assignee,followup:upd.followup});
-  document.getElementById('fNt').value='';
-  const m=document.getElementById('savedMsg');m.style.opacity=1;setTimeout(()=>m.style.opacity=0,2000);
-  btn.disabled=false;
+  if(!DB){alert('Not connected to Firebase. Please reload the page.');return;}
+  // Author: use "Your Name" field; fall back to assignee name; fall back to "Unknown"
+  const author=document.getElementById('uname').value.trim()
+    ||document.getElementById('fAs')?.value.trim()
+    ||'Unknown';
+  const btn=document.querySelector('.btn-save');
+  if(btn) btn.disabled=true;
+  try{
+    const s=states[selId]||{};
+    const ts=new Date().toISOString();
+    const upd={author,status:curSt||s.status||'none',
+      project:document.getElementById('fPj').value,
+      assignee:document.getElementById('fAs').value.trim(),
+      followup:document.getElementById('fDt').value,
+      note:document.getElementById('fNt').value.trim(),ts};
+    await DB.ref(`/updates/${selId}`).push(upd);
+    await DB.ref(`/states/${selId}`).set({status:upd.status,project:upd.project,assignee:upd.assignee,followup:upd.followup});
+    document.getElementById('fNt').value='';
+    const m=document.getElementById('savedMsg');if(m){m.style.opacity=1;setTimeout(()=>m.style.opacity=0,2000);}
+  }catch(e){
+    alert('Save failed: '+(e.message||'Firebase error. Check connection.'));
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 
 function exportData(){
