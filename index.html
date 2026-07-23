@@ -1771,7 +1771,7 @@ function renderProjTable(){
     rows=SITES.filter(r=>r&&r[0]&&r[proj.idx]);
   }
   if(q)rows=rows.filter(r=>r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q));
-  if(fst)rows=rows.filter(r=>(states[r[0]]?.status||'none')===fst);
+  if(fst)rows=rows.filter(r=>(projStates[r[0]]?.[key]||states[r[0]]?.status||'none')===fst);
   if(fuSort){
     rows=rows.slice().sort(function(a,b){
       var av=dateToNum(states[a[0]]?.followup),bv=dateToNum(states[b[0]]?.followup);
@@ -1786,9 +1786,9 @@ function renderProjTable(){
     '<div class="sc"><div class="v" style="color:'+proj.color+'">'+rows.length+'</div><div class="l">Sites</div></div>'+
     '<div class="sc"><div class="v" style="color:#10b981">'+withData+'</div><div class="l">With Equipment</div></div>'+
     '<div class="sc"><div class="v" style="color:#f59e0b">'+(rows.length-withData)+'</div><div class="l">Pending</div></div>'+
-    '<div class="sc sdk"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='done').length+'</div><div class="l">Done</div></div>'+
-    '<div class="sc spg"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length+'</div><div class="l">In Progress</div></div>'+
-    '<div class="sc sbl"><div class="v">'+rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length+'</div><div class="l">Blocked</div></div>';
+    '<div class="sc sdk"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||states[r[0]]?.status||'none')==='done').length+'</div><div class="l">Done</div></div>'+
+    '<div class="sc spg"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||states[r[0]]?.status||'none')==='progress').length+'</div><div class="l">In Progress</div></div>'+
+    '<div class="sc sbl"><div class="v">'+rows.filter(r=>(projStates[r[0]]?.[key]||states[r[0]]?.status||'none')==='blocked').length+'</div><div class="l">Blocked</div></div>';
 
   const sub=document.getElementById('pjSub');
   if(sub)sub.textContent=rows.length+' sites · '+cols.length+' equip col'+(cols.length!==1?'s':'');
@@ -1796,7 +1796,7 @@ function renderProjTable(){
   buildProjThead();
   const tbody=document.getElementById('pjBody');if(!tbody)return;
   tbody.innerHTML=rows.map(function(r){
-    const s=states[r[0]]||{};const st=s.status||'none';
+    const s=states[r[0]]||{};const st=projStates[r[0]]?.[key]||s.status||'none';
     const sv=vals[r[0]]||{};
     const extraCells=extra.map(function(e){
       const v=e.get(r);
