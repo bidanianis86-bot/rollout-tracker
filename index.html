@@ -4746,6 +4746,10 @@ function renderOgSites(){
   }
   const tbody=document.getElementById('ogSitesBody');
   if(!tbody) return;
+  // Guard: if the user is actively editing a cell (e.g. date picker open, typing in assignee),
+  // skip the innerHTML rebuild so we don't close the native date-picker popup or reset typed text.
+  // ogStates is already updated in memory; the display will sync on the next render after they leave.
+  if(tbody.contains(document.activeElement)) return;
   tbody.innerHTML=rows.map(function([sid,eq]){
     const dispId=sid.includes('__')?sid.split('__')[0]:sid;
     const nm=eq.site_name||dispId;
