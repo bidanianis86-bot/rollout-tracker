@@ -405,6 +405,11 @@ __dbg('DOM ready, awaiting script...');
             <option value="all_done">&#10003; All Projects Done</option>
           </select>
           <select id="trAs" onchange="renderList()"><option value="">All Assignees</option></select>
+          <select id="trFuSort" onchange="renderList()">
+            <option value="">Follow-up Sort</option>
+            <option value="desc">Newest first ↓</option>
+            <option value="asc">Oldest first ↑</option>
+          </select>
         </div>
         <div style="display:flex;gap:6px;padding:4px 0 2px">
           <button class="btn" style="flex:1;font-size:.75rem;padding:5px 4px" onclick="exportTracker()">&#11015; Export</button>
@@ -491,6 +496,11 @@ __dbg('DOM ready, awaiting script...');
       <option value="">All Status</option>
       <option value="none">No Status</option><option value="progress">In Progress</option>
       <option value="done">Done</option><option value="blocked">Blocked</option><option value="review">Under Review</option>
+    </select>
+    <select id="pjFuSort" onchange="renderProjTable()" style="padding:6px 8px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.8rem;background:#f8fafc;outline:none">
+      <option value="">Follow-up Sort</option>
+      <option value="desc">Newest first ↓</option>
+      <option value="asc">Oldest first ↑</option>
     </select>
     <button class="btn btn-primary" onclick="openProjUpload()">&#128228; Upload Equipment File</button>
     <button class="btn" onclick="exportProjPage()">&#11015; Export Excel</button>
@@ -645,6 +655,11 @@ __dbg('DOM ready, awaiting script...');
         <option value="done">Done</option>
         <option value="blocked">Blocked</option>
         <option value="review">Under Review</option>
+      </select>
+      <select id="ogFuSort" onchange="renderOgSites()" style="padding:6px 8px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.8rem;background:#f8fafc;outline:none">
+        <option value="">Follow-up Sort</option>
+        <option value="desc">Newest first ↓</option>
+        <option value="asc">Oldest first ↑</option>
       </select>
       <button class="btn" onclick="exportOgSites()">&#11015; Export Excel</button>
       <button class="btn btn-primary" onclick="openOgImport()">&#128228; Upload Status File</button>
@@ -981,6 +996,19 @@ function fmtDate(v){
   var p=s.split(/[-\/]/);
   if(p.length===3&&p[0].length===4)return p[2].padStart(2,'0')+'-'+p[1].padStart(2,'0')+'-'+p[0]; // YYYY-MM-DD → DD-MM-YYYY
   return s; // already formatted or unknown — return as-is
+}
+// Normalize any date value to YYYY-MM-DD (for <input type="date"> value attribute)
+function rawDateForInput(v){
+  if(!v)return'';
+  var n=typeof v==='number'?v:parseFloat(v);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    var d=new Date(Math.round((n-25569)*86400000));
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  }
+  var s=String(v).trim(),p=s.split(/[-\/]/);
+  if(p.length===3&&p[0].length===4)return s; // already YYYY-MM-DD
+  if(p.length===3&&p[2].length===4)return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'); // DD-MM-YYYY
+  return s;
 }
 // Returns a sortable numeric value from a date (Excel serial or YYYY-MM-DD) — 0 if empty/invalid
 function dateToNum(v){
@@ -1355,8 +1383,9 @@ function renderList(){
   const fp=document.getElementById('trPj')?.value||'';
   const fa=document.getElementById('trAs')?.value||'';
   const fcp=document.getElementById('trCurPj')?.value||'';
+  const fuSort=document.getElementById('trFuSort')?.value||'';
   var _inSA=function(sid,pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(sid)&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(sid)));};
-  const rows=SITES.filter(r=>{
+  let rows=SITES.filter(r=>{
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
     // Hide sites with no active project
@@ -1368,6 +1397,13 @@ function renderList(){
     if(fcp&&(states[r[0]]?.project||'')!==fcp)return false;
     return true;
   });
+  if(fuSort){
+    rows=rows.slice().sort(function(a,b){
+      var av=dateToNum(states[a[0]]?.followup),bv=dateToNum(states[b[0]]?.followup);
+      if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;
+      return fuSort==='asc'?(av-bv):(bv-av);
+    });
+  }
   const c={none:0,progress:0,done:0,blocked:0,review:0};
   rows.forEach(r=>{const s=states[r[0]]?.status||'none';c[s]=(c[s]||0)+1;});
   const sbEl=document.getElementById('sbSt');
@@ -1714,6 +1750,7 @@ function renderProjTable(){
   const proj=ALL_PROJS.find(p=>p.key===key);
   const q=(document.getElementById('pjQ')?.value||'').toLowerCase();
   const fst=document.getElementById('pjStFilter')?.value||'';
+  const fuSort=document.getElementById('pjFuSort')?.value||'';
   const cols=projEquipMeta[key]||[];
   const vals=projEquipVals[key]||{};
   const extra=projExtraCols(key);
@@ -1727,6 +1764,13 @@ function renderProjTable(){
   }
   if(q)rows=rows.filter(r=>r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q));
   if(fst)rows=rows.filter(r=>(states[r[0]]?.status||'none')===fst);
+  if(fuSort){
+    rows=rows.slice().sort(function(a,b){
+      var av=dateToNum(states[a[0]]?.followup),bv=dateToNum(states[b[0]]?.followup);
+      if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;
+      return fuSort==='asc'?(av-bv):(bv-av);
+    });
+  }
 
   const withData=rows.filter(r=>vals[r[0]]&&Object.keys(vals[r[0]]).length>0).length;
   const sb=document.getElementById('pjSumbar');
@@ -4691,7 +4735,15 @@ function renderOgSites(){
   const q=document.getElementById('ogQ')?.value||'';
   const yrF=document.getElementById('ogYrFilter')?.value||'';
   const stF=document.getElementById('ogStFilter')?.value||'';
-  const rows=getOgSites(yrF,stF,q);
+  const fuSort=document.getElementById('ogFuSort')?.value||'';
+  let rows=getOgSites(yrF,stF,q);
+  if(fuSort){
+    rows=rows.slice().sort(function(a,b){
+      var av=dateToNum(ogStates[a[0]]?.followup),bv=dateToNum(ogStates[b[0]]?.followup);
+      if(!av&&!bv)return 0;if(!av)return 1;if(!bv)return -1;
+      return fuSort==='asc'?(av-bv):(bv-av);
+    });
+  }
   const tbody=document.getElementById('ogSitesBody');
   if(!tbody) return;
   tbody.innerHTML=rows.map(function([sid,eq]){
@@ -4700,6 +4752,7 @@ function renderOgSites(){
     const st=ogStates[sid]?.status||'none';
     const as=(ogStates[sid]?.assignee||'').replace(/"/g,'&quot;');
     const fu=fmtDate(ogStates[sid]?.followup||'');
+    const fuInput=rawDateForInput(ogStates[sid]?.followup||'');
     const yr=eq.og_year||'';
     const yrbg=yr==='OG25'?'#0e7490':'#0f766e';
     return [
@@ -4720,7 +4773,7 @@ function renderOgSites(){
         '<option value="review"'+(st==='review'?' selected':'')+'>Under Review</option>',
       '</select></td>',
       '<td><input type="text" value="'+as+'" data-sid="'+sid+'" onchange="updateOgAssignee(this.dataset.sid,this.value)" placeholder="Assignee" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 6px;width:90px"></td>',
-      '<td><input type="date" value="'+fu+'" data-sid="'+sid+'" onchange="updateOgFollowup(this.dataset.sid,this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>',
+      '<td><input type="date" value="'+fuInput+'" data-sid="'+sid+'" onchange="updateOgFollowup(this.dataset.sid,this.value)" style="font-size:.78rem;border:1px solid #c0cfe0;border-radius:5px;padding:2px 4px"></td>',
       '<td><button onclick="openEditOgSite(\''+sid+'\');" style="background:none;border:1px solid #c0cfe0;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:.8rem;color:#0f766e;font-weight:600" title="Edit">&#9998;</button></td>',
       '</tr>'
     ].join('');
