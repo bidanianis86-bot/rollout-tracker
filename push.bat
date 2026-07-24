@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "revert: undo per-project status changes; restore states-based status for project pages and overview; keep P0->Resizing tab" --allow-empty
+git commit -m "fix: per-project status fallback; export mirrors filtered rows; overview export multi-sheet by project" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
