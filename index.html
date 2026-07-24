@@ -4382,7 +4382,9 @@ function _downloadXlsx(rows,filename){
 }
 
 function exportOv(){
-  // Mirror exact filter logic from renderOv()
+  var wb=XLSX.utils.book_new();
+
+  // ── Sheet 1: Overview (all sites, current filters) ──
   var q=(document.getElementById('ovQ')?.value||'').toLowerCase();
   var px=document.getElementById('ovPfx')?.value||'';
   var pj=document.getElementById('ovPj')?.value||'';
@@ -4403,12 +4405,12 @@ function exportOv(){
     if(d2f==='1'&&!r[18]&&!_expActive(r[0],'d2'))return false;
     return true;
   });
-  var hdr=['Site ID','Site Name','Region','Zone','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','P0','D2 Recap','Outdoorisation','Relocalisation','Status','Assignee','Tagged Project','Follow-up'];
-  var rows=[hdr];
+  var ovHdr=['Site ID','Site Name','Region','Zone','Site Type','Batch 0','B1 PS','B1 NPS','CT','B2 PS','Recapex','Resizing','D2 Recap','Outdoorisation','Relocalisation','Status','Assignee','Tagged Project','Follow-up'];
+  var ovData=[ovHdr];
   filtered.forEach(function(r){
     var s=states[r[0]]||{};
-    rows.push([
-      r[0],r[1]||'',r[2]||'',r[3]||'',
+    ovData.push([
+      r[0],r[1]||'',r[2]||'',r[3]||'',r[10]||'',
       (r[4]||_expActive(r[0],'b0'))?'Yes':'',
       (r[5]||_expActive(r[0],'b1ps'))?'Yes':'',
       (r[6]||_expActive(r[0],'b1nps'))?'Yes':'',
@@ -4425,7 +4427,34 @@ function exportOv(){
       s.followup||''
     ]);
   });
-  _downloadXlsx(rows,'Overview_Export.xlsx');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(ovData),'Overview');
+
+  // ── One sheet per project ──
+  ALL_PROJS.forEach(function(proj){
+    var key=proj.key;
+    var vals=projEquipVals[key]||{};
+    var meta=projEquipMeta[key]||[];
+    var pRows;
+    if(Object.keys(vals).length>0){
+      pRows=Object.keys(vals).map(function(sid){return BASE_MAP[sid]||[sid,'','','','','','','','','','','','','','','','','',''];});
+    } else {
+      pRows=SITES.filter(function(r){return r&&r[0]&&(r[proj.idx]||_expActive(r[0],key));});
+    }
+    var phdr=['Site ID','Site Name','Region','Zone','Site Type','Status','Assignee','Follow-up'].concat(meta.map(function(m){return m.display_name||m.col_key||'';}));
+    var pData=[phdr];
+    pRows.forEach(function(r){
+      var s=states[r[0]]||{};
+      var pst=projStates[r[0]]?.[key]||s.status||'none';
+      var eq=vals[r[0]]||{};
+      var row=[r[0],r[1]||'',r[2]||'',r[3]||'',r[10]||'',STLBL[pst]||'',s.assignee||'',s.followup||''];
+      meta.forEach(function(m){row.push(eq[m.col_key]!==undefined?eq[m.col_key]:'');});
+      pData.push(row);
+    });
+    var sheetName=proj.label.replace(/[\\\/\?\*\[\]]/g,'').substring(0,31);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(pData),sheetName);
+  });
+
+  XLSX.writeFile(wb,'Overview_Export.xlsx');
 }
 
 function exportTracker(){
@@ -4457,30 +4486,36 @@ function exportProjPage(){
   var key=curProjKey;
   if(!key)return;
   var proj=ALL_PROJS.find(function(p){return p.key===key;});
+  if(!proj)return;
   var fq=(document.getElementById('pjQ')?.value||'').toLowerCase();
   var fst=document.getElementById('pjStFilter')?.value||'';
-  var fogyr=document.getElementById('pjOgYr')?.value||'';
   var meta=projEquipMeta[key]||[];
   var vals=projEquipVals[key]||{};
-  var hdr=['Site ID','Site Name','Region','Zone','Status','Assignee','Tagged Project','Follow-up'].concat(meta.map(function(m){return m.display_name||m.col_key||'';}));
-  var rows=[hdr];
-  SITES.filter(function(r){
-    if(!r||!r[0])return false;
-    if(!r[proj.idx]&&!_expActive(r[0],key))return false;
-    if(fq&&!(r[0].toLowerCase().includes(fq)||(r[1]||'').toLowerCase().includes(fq)))return false;
-    var sd=states[r[0]]||{};
-    if(fst&&(sd.status||'none')!==fst)return false;
-  if(fogyr&&(eq.og_year||'')!==fogyr)return false;
-    return true;
-  }).forEach(function(r){
+
+  // Mirror renderProjTable() row source exactly
+  var rows;
+  if(Object.keys(vals).length>0){
+    rows=Object.keys(vals).map(function(sid){return BASE_MAP[sid]||[sid,'','','','','','','','','','','','','','','','','',''];});
+  } else {
+    rows=SITES.filter(function(r){return r&&r[0]&&(r[proj.idx]||_expActive(r[0],key));});
+  }
+
+  // Apply same filters as renderProjTable()
+  if(fq)rows=rows.filter(function(r){return r[0].toLowerCase().includes(fq)||(r[1]||'').toLowerCase().includes(fq);});
+  if(fst)rows=rows.filter(function(r){return (projStates[r[0]]?.[key]||states[r[0]]?.status||'none')===fst;});
+
+  var hdr=['Site ID','Site Name','Region','Zone','Site Type','Status','Assignee','Tagged Project','Follow-up'].concat(meta.map(function(m){return m.display_name||m.col_key||'';}));
+  var out=[hdr];
+  rows.forEach(function(r){
     var s=states[r[0]]||{};
-    var eq=(vals[r[0]])||{};
-    var row=[r[0],r[1]||'',r[2]||'',r[3]||'',STLBL[s.status||'none']||'',s.assignee||'',PJ_LABELS[s.project]||s.project||'',s.followup||''];
+    var st=projStates[r[0]]?.[key]||s.status||'none';
+    var eq=vals[r[0]]||{};
+    var row=[r[0],r[1]||'',r[2]||'',r[3]||'',r[10]||'',STLBL[st]||'',s.assignee||'',PJ_LABELS[s.project]||s.project||'',s.followup||''];
     meta.forEach(function(m){row.push(eq[m.col_key]!==undefined?eq[m.col_key]:'');});
-    rows.push(row);
+    out.push(row);
   });
   var fname=(proj.label.replace(/[^a-zA-Z0-9]/g,'_'))+'_Export.xlsx';
-  _downloadXlsx(rows,fname);
+  _downloadXlsx(out,fname);
 }
 
 /* ── Import tracker ── */
