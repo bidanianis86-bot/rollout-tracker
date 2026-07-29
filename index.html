@@ -335,6 +335,7 @@ __dbg('DOM ready, awaiting script...');
         </select>
         <button class="btn" onclick="resetOv()">Reset</button>
         <button class="btn" onclick="exportOv()">&#11015; Export Excel</button>
+        <button id="restoreStatesBtn" class="btn" onclick="restoreStatesFromHistory()" style="background:#fef3c7;color:#92400e;border-color:#f59e0b;display:none" title="Rebuild site statuses from saved update history">&#128257; Restore Status</button>
         <button class="btn btn-primary" onclick="openUpload()">&#128228; Upload Project File</button>
         <button class="btn" onclick="openManageCols()">&#9881; Columns</button>
         <button class="btn" onclick="openAddSite(curProjKey)" style="background:#1a3c5e;color:#fff;border-color:#1a3c5e">&#43; Add Site</button>
@@ -1109,13 +1110,17 @@ function renderOv(){
   setV('oT',rows.length);setV('oB0',rows.filter(r=>r[4]).length);setV('oB1p',rows.filter(r=>r[5]).length);
   setV('oB1n',rows.filter(r=>r[6]).length);setV('oCt',rows.filter(r=>r[7]).length);setV('oB2p',rows.filter(r=>r[8]).length);
   setV('oRx',rows.filter(r=>r[16]||_inStaticActive(r[0],'rx')).length);setV('oP0',rows.filter(r=>r[14]||_inStaticActive(r[0],'p0')).length);
-  setV('oPg',rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length);
-  setV('oDn',rows.filter(r=>(states[r[0]]?.status||'none')==='done').length);
-  setV('oBl',rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length);
+  const pgC=rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length;
+  const dnC=rows.filter(r=>(states[r[0]]?.status||'none')==='done').length;
+  const blC=rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length;
+  setV('oPg',pgC);setV('oDn',dnC);setV('oBl',blC);
   setV('oD2',rows.filter(r=>r[18]||_inStaticActive(r[0],'d2')).length);
   setV('oOut',rows.filter(r=>r[19]||_inStaticActive(r[0],'out')).length);
   setV('oRel',rows.filter(r=>r[20]||_inStaticActive(r[0],'rel')).length);
   const rcEl=document.getElementById('ovRc');if(rcEl)rcEl.textContent=rows.length+' sites shown';
+  // Show restore button when all status counts are 0 but sites exist (states likely wiped)
+  const rBtn=document.getElementById('restoreStatesBtn');
+  if(rBtn)rBtn.style.display=(rows.length>0&&dnC===0&&pgC===0&&blC===0)?'':'none';
   const nr=document.getElementById('ovNr');if(nr)nr.style.display=rows.length?'none':'block';
   const tbody=document.getElementById('ovBody');
   if(!tbody)return;
@@ -1622,6 +1627,47 @@ function exportData(){
     a.download='rollout_backup_'+new Date().toISOString().slice(0,10)+'.json';
     a.click();
   });
+}
+
+async function restoreStatesFromHistory(){
+  if(!DB){alert('Not connected to Firebase.');return;}
+  const btn=document.getElementById('restoreStatesBtn');
+  if(btn){btn.disabled=true;btn.textContent='Reading history…';}
+  try{
+    const snap=await DB.ref('/updates').once('value');
+    const allUpd=snap.val()||{};
+    const sids=Object.keys(allUpd);
+    if(!sids.length){
+      alert('No update history found in Firebase.\nCannot restore — history is also empty.');
+      return;
+    }
+    const newStates={};
+    for(const sid of sids){
+      const siteUpds=allUpd[sid];
+      let latestTs='',latestUpd=null;
+      for(const key in siteUpds){
+        const u=siteUpds[key];
+        if(u&&u.ts&&u.ts>latestTs){latestTs=u.ts;latestUpd=u;}
+      }
+      if(latestUpd){
+        newStates[sid]={
+          status:latestUpd.status||'none',
+          project:latestUpd.project||'',
+          assignee:latestUpd.assignee||'',
+          followup:latestUpd.followup||''
+        };
+      }
+    }
+    const count=Object.keys(newStates).length;
+    if(!confirm('Found '+count+' sites in history.\nRestoring will write the latest saved status, assignee, project and follow-up date for each site back to the database.\n\nProceed?'))return;
+    await DB.ref('/states').set(newStates);
+    alert('✓ Restored '+count+' sites from update history.\nThe page will refresh now.');
+    location.reload();
+  }catch(e){
+    alert('Restore failed: '+(e.message||'Firebase error'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 Restore Status';}
+  }
 }
 
 /* ══ Nav ══ */
