@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "fix: restore states from history; per-project status fallback; export mirrors filtered rows; overview export multi-sheet by project" --allow-empty
+git commit -m "fix: overview recognizes equipment-upload sites as project members (Recapex badge, stat counts, filters)" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
