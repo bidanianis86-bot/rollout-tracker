@@ -1071,14 +1071,16 @@ function renderOv(){
   const nbpj=document.getElementById('ovNbPj')?.value||'';
   // Helper: check if site is in STATIC_PROJ_SITES[pk] and NOT removed from it
   var _inStaticActive=function(sid,pk){return !!(STATIC_PROJ_SITES[pk]&&STATIC_PROJ_SITES[pk].has(sid)&&!(_removedFromProj[pk]&&_removedFromProj[pk].has(sid)));};
+  var _inEquip=function(sid,pk){return !!(projEquipVals[pk]&&projEquipVals[pk][sid]);};
+  var _inProj=function(sid,pk){return _inStaticActive(sid,pk)||_inEquip(sid,pk);};
   let rows=SITES.filter(r=>{
     if(!r||!r[0])return false;
     if(q&&!(r[0].toLowerCase().includes(q)||(r[1]||'').toLowerCase().includes(q)))return false;
     if(px&&!r[0].startsWith(px+'_'))return false;
-    // Hide sites with no active project (all SITES flags cleared AND not in any active STATIC_PROJ_SITES)
+    // Hide sites with no active project (no flags, not in STATIC_PROJ_SITES, not in equipment data)
     var _hasFlag=r[4]||r[5]||r[6]||r[7]||r[8]||r[14]||r[16]||r[18]||r[19]||r[20];
-    if(!_hasFlag&&!_inStaticActive(r[0],'b0')&&!_inStaticActive(r[0],'b1ps')&&!_inStaticActive(r[0],'b1nps')&&!_inStaticActive(r[0],'ct')&&!_inStaticActive(r[0],'b2ps')&&!_inStaticActive(r[0],'rx')&&!_inStaticActive(r[0],'p0')&&!_inStaticActive(r[0],'d2')&&!_inStaticActive(r[0],'out')&&!_inStaticActive(r[0],'rel'))return false;
-    if(pj&&!r[PM[pj]]&&!(STATIC_PROJ_SITES[pj]&&STATIC_PROJ_SITES[pj].has(r[0])&&!(_removedFromProj[pj]&&_removedFromProj[pj].has(r[0]))))return false;
+    if(!_hasFlag&&!_inProj(r[0],'b0')&&!_inProj(r[0],'b1ps')&&!_inProj(r[0],'b1nps')&&!_inProj(r[0],'ct')&&!_inProj(r[0],'b2ps')&&!_inProj(r[0],'rx')&&!_inProj(r[0],'p0')&&!_inProj(r[0],'d2')&&!_inProj(r[0],'out')&&!_inProj(r[0],'rel'))return false;
+    if(pj&&!r[PM[pj]]&&!_inProj(r[0],pj))return false;
     if(en&&r[10]!==en)return false;
     if(st&&(states[r[0]]?.status||'none')!==st)return false;
     if(rxp&&r[17]!==rxp)return false;
@@ -1107,16 +1109,16 @@ function renderOv(){
     });
   }
   const setV=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  setV('oT',rows.length);setV('oB0',rows.filter(r=>r[4]).length);setV('oB1p',rows.filter(r=>r[5]).length);
-  setV('oB1n',rows.filter(r=>r[6]).length);setV('oCt',rows.filter(r=>r[7]).length);setV('oB2p',rows.filter(r=>r[8]).length);
-  setV('oRx',rows.filter(r=>r[16]||_inStaticActive(r[0],'rx')).length);setV('oP0',rows.filter(r=>r[14]||_inStaticActive(r[0],'p0')).length);
+  setV('oT',rows.length);setV('oB0',rows.filter(r=>r[4]||_inProj(r[0],'b0')).length);setV('oB1p',rows.filter(r=>r[5]||_inProj(r[0],'b1ps')).length);
+  setV('oB1n',rows.filter(r=>r[6]||_inProj(r[0],'b1nps')).length);setV('oCt',rows.filter(r=>r[7]||_inProj(r[0],'ct')).length);setV('oB2p',rows.filter(r=>r[8]||_inProj(r[0],'b2ps')).length);
+  setV('oRx',rows.filter(r=>r[16]||_inProj(r[0],'rx')).length);setV('oP0',rows.filter(r=>r[14]||_inProj(r[0],'p0')).length);
   const pgC=rows.filter(r=>(states[r[0]]?.status||'none')==='progress').length;
   const dnC=rows.filter(r=>(states[r[0]]?.status||'none')==='done').length;
   const blC=rows.filter(r=>(states[r[0]]?.status||'none')==='blocked').length;
   setV('oPg',pgC);setV('oDn',dnC);setV('oBl',blC);
-  setV('oD2',rows.filter(r=>r[18]||_inStaticActive(r[0],'d2')).length);
-  setV('oOut',rows.filter(r=>r[19]||_inStaticActive(r[0],'out')).length);
-  setV('oRel',rows.filter(r=>r[20]||_inStaticActive(r[0],'rel')).length);
+  setV('oD2',rows.filter(r=>r[18]||_inProj(r[0],'d2')).length);
+  setV('oOut',rows.filter(r=>r[19]||_inProj(r[0],'out')).length);
+  setV('oRel',rows.filter(r=>r[20]||_inProj(r[0],'rel')).length);
   const rcEl=document.getElementById('ovRc');if(rcEl)rcEl.textContent=rows.length+' sites shown';
   // Show restore button when all status counts are 0 but sites exist (states likely wiped)
   const rBtn=document.getElementById('restoreStatesBtn');
@@ -1134,13 +1136,13 @@ function renderOv(){
       <td>${escapeHtml(r[1])||'&mdash;'}</td><td style="color:#556">${escapeHtml(r[2])||'&mdash;'}</td>
       <td style="color:#556">${escapeHtml(r[3]||r[12])||'&mdash;'}</td>
       <td><span class="${tpC(r[10])}">${r[10]||'&mdash;'}</span></td>
-      <td>${r[17]?`<span class="rx-yes">&#10003;&nbsp;${r[17]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk">${ovPjSym(r[0],r[4],'b0')}</td><td class="chk">${ovPjSym(r[0],r[5],'b1ps')}</td><td class="chk">${ovPjSym(r[0],r[6],'b1nps')}</td>
-      <td class="chk">${ovPjSym(r[0],r[7],'ct')}</td><td class="chk">${ovPjSym(r[0],r[8],'b2ps')}</td>
-      <td>${r[14]?`<span class="p0-yes">Resizing&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
-      <td class="chk">${ovPjSym(r[0],r[18]||_inStaticActive(r[0],'d2'),'d2')}</td>
-      <td class="chk">${ovPjSym(r[0],r[19]||_inStaticActive(r[0],'out'),'out')}</td>
-      <td class="chk">${ovPjSym(r[0],r[20]||_inStaticActive(r[0],'rel'),'rel')}</td>
+      <td>${r[17]||_inProj(r[0],'rx')?`<span class="rx-yes">&#10003;&nbsp;${r[17]||'Recapex'}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
+      <td class="chk">${ovPjSym(r[0],r[4]||_inProj(r[0],'b0'),'b0')}</td><td class="chk">${ovPjSym(r[0],r[5]||_inProj(r[0],'b1ps'),'b1ps')}</td><td class="chk">${ovPjSym(r[0],r[6]||_inProj(r[0],'b1nps'),'b1nps')}</td>
+      <td class="chk">${ovPjSym(r[0],r[7]||_inProj(r[0],'ct'),'ct')}</td><td class="chk">${ovPjSym(r[0],r[8]||_inProj(r[0],'b2ps'),'b2ps')}</td>
+      <td>${r[14]||_inProj(r[0],'p0')?`<span class="p0-yes">Resizing&nbsp;${r[15]}</span>`:'<span style="color:#d1d5db">&middot;</span>'}</td>
+      <td class="chk">${ovPjSym(r[0],r[18]||_inProj(r[0],'d2'),'d2')}</td>
+      <td class="chk">${ovPjSym(r[0],r[19]||_inProj(r[0],'out'),'out')}</td>
+      <td class="chk">${ovPjSym(r[0],r[20]||_inProj(r[0],'rel'),'rel')}</td>
       <td class="chk"><span class="${nbc(r[9])}">${r[9]}</span></td>
       ${cCells}
       <td style="font-size:.77rem;color:#445">${s.project?'<span class="'+(s.project==='all_done'?'tag-pj-done':'tag-pj')+'">'+PJ_LABELS[s.project]+'</span> ':''} ${s.assignee||''}</td>
