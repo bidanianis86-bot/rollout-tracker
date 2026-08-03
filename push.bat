@@ -9,7 +9,7 @@ if exist ".git\COMMIT_EDITMSG.lock" del /f ".git\COMMIT_EDITMSG.lock"
 git config user.email "bidani.anis86@gmail.com"
 git config user.name "Anis"
 git add index.html .github/workflows/deploy.yml push.bat
-git commit -m "feat: map page with 3342 site GPS coordinates, Leaflet/OSM, filter by project and status" --allow-empty
+git commit -m "feat: map page with 3372 site GPS coords; +30 previously missing sites resolved from Modernisation synthese" --allow-empty
 git push origin main
 echo.
 echo Done! Site will update in ~1 minute.
