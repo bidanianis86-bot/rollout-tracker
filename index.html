@@ -893,7 +893,7 @@ function listenData(){
   DB.ref('.info/connected').on('value', snap=>setConn(snap.val()));
   // Safety: if equip_vals take >5s, render anyway with whatever loaded
   setTimeout(function(){
-    if(!_eagLoaded){_eagLoaded=true;rebuildSites();buildOvThead();renderOv();renderList();}
+    if(!_eagLoaded){_eagLoaded=true;rebuildSites();buildOvThead();renderOv();renderList();renderMap();}
   },5000);
   // Eagerly load all project equip_vals — one combined render when all have fired once
   ALL_PROJS.forEach(function(p){
@@ -1758,29 +1758,32 @@ function _mkIcon(color){
 
 function toggleMapPjDrop(){
   var d=document.getElementById('mapPjDrop');
-  d.style.display=d.style.display==='none'?'block':'none';
+  if(!d)return;
+  d.style.display=(d.style.display==='block')?'none':'block';
 }
 function _getMapPjSelected(){
-  return Array.from(document.querySelectorAll('#mapPjDrop input[type=checkbox]:checked')).map(c=>c.value);
+  return Array.from(document.querySelectorAll('#mapPjDrop input[type=checkbox]:checked')).map(function(c){return c.value;});
 }
 function _updateMapPjBtn(){
   var sel=_getMapPjSelected();
   var btn=document.getElementById('mapPjBtn');
   if(!btn)return;
-  btn.textContent=sel.length===0?'All Projects ▼':sel.length===1?
-    document.querySelector('#mapPjDrop input[value="'+sel[0]+'"]+span+span'+('')||sel[0]:
-    sel.length+' Projects ▼';
-  // simpler label
-  if(sel.length===0)btn.textContent='All Projects ▼';
-  else if(sel.length===1){var lb=document.querySelector('#mapPjDrop input[value="'+sel[0]+'"]')?.closest('label')?.textContent?.trim();btn.textContent=(lb||sel[0])+' ▼';}
-  else btn.textContent=sel.length+' Projects ▼';
+  var label;
+  if(sel.length===0){label='All Projects';}
+  else if(sel.length===1){
+    var inp=document.querySelector('#mapPjDrop input[value="'+sel[0]+'"]');
+    label=inp?inp.closest('label').textContent.trim():sel[0];
+  } else {
+    label=sel.length+' Projects';
+  }
+  btn.textContent=label+' ▼';
 }
 function mapPjSelectAll(){
-  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(c=>{c.checked=true;});
+  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(function(c){c.checked=true;});
   _updateMapPjBtn();renderMap();
 }
 function mapPjClearAll(){
-  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(c=>{c.checked=false;});
+  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(function(c){c.checked=false;});
   _updateMapPjBtn();renderMap();
 }
 // Close dropdown when clicking outside
