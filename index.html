@@ -256,7 +256,9 @@ __dbg('DOM ready, awaiting script...');
 <header>
   <h1>&#128205; Rollout Tracker 2026 &mdash; Senegal</h1>
   <div class="nav-tabs">
-    <button class="nav-tab active" id="tabOv" onclick="showPage('ov')">&#128202; Overview</button>
+    <button class="nav-tab active" id="tabMap" onclick="showPage('map')">&#127758; Map</button>
+    <div class="nav-sep"></div>
+    <button class="nav-tab" id="tabOv" onclick="showPage('ov')">&#128202; Overview</button>
     <button class="nav-tab" id="tabTr" onclick="showPage('tr')">&#128221; Tracker</button>
     <div class="nav-sep"></div>
     <button class="nav-tab" id="tabB0"   onclick="showProjPage('b0')"  ><span class="proj-badge" style="background:#7c3aed"></span>Batch 0</button>
@@ -271,8 +273,6 @@ __dbg('DOM ready, awaiting script...');
     <button class="nav-tab" id="tabRel"  onclick="showProjPage('rel')" ><span class="proj-badge" style="background:#8e44ad"></span>Relocalisation</button>
     <button class="nav-tab" id="tabOgOv" onclick="showOgPage('ov')"><span class="proj-badge" style="background:#0f766e"></span>OG Overview</button>
     <button class="nav-tab" id="tabOgSites" onclick="showOgPage('sites')"><span class="proj-badge" style="background:#0f766e"></span>OG Sites</button>
-    <div class="nav-sep"></div>
-    <button class="nav-tab" id="tabMap" onclick="showPage('map')">&#127758; Map</button>
   </div>
   <div class="user-bar">
     <div class="conn-dot" id="connDot" title="Connecting…"></div>
@@ -283,7 +283,7 @@ __dbg('DOM ready, awaiting script...');
 </header>
 
 <!-- OVERVIEW -->
-<div class="page" id="pageOv">
+<div class="page hidden" id="pageOv">
   <div id="ovLoading" style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;font-size:.95rem;color:#778">
     <div class="spinner"></div> Connecting to database…
   </div>
@@ -723,22 +723,28 @@ __dbg('DOM ready, awaiting script...');
 </div>
 
 <!-- MAP PAGE -->
-<div class="page hidden" id="pageMap" style="flex-direction:column">
+<div class="page" id="pageMap" style="flex-direction:column">
   <div class="map-toolbar">
     <span style="font-weight:600;color:#1a3c5e;font-size:.9rem">&#127758; Site Map &mdash; Senegal</span>
-    <select id="mapPjFilter" onchange="renderMap()" style="min-width:130px">
-      <option value="">All Projects</option>
-      <option value="b0">Batch 0</option>
-      <option value="b1ps">B1 PS</option>
-      <option value="b1nps">B1 NPS</option>
-      <option value="ct">Ch.Typo</option>
-      <option value="b2ps">B2 PS</option>
-      <option value="rx">Recapex</option>
-      <option value="p0">Resizing</option>
-      <option value="d2">D2 Recap</option>
-      <option value="out">Outdoorisation</option>
-      <option value="rel">Relocalisation</option>
-    </select>
+    <div style="position:relative;display:inline-block" id="mapPjDropWrap">
+      <button id="mapPjBtn" onclick="toggleMapPjDrop()" style="padding:5px 10px;border:1.5px solid #c0cfe0;border-radius:7px;font-size:.82rem;background:#fff;cursor:pointer;min-width:130px;text-align:left">All Projects &#9660;</button>
+      <div id="mapPjDrop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border:1.5px solid #c0cfe0;border-radius:8px;padding:6px 0;z-index:9999;min-width:170px;box-shadow:0 4px 16px rgba(0,0,0,.12)">
+        <div style="padding:4px 12px;border-bottom:1px solid #e0e6ef;display:flex;gap:8px">
+          <span style="cursor:pointer;font-size:.76rem;color:#2563a8;font-weight:600" onclick="mapPjSelectAll()">All</span>
+          <span style="cursor:pointer;font-size:.76rem;color:#2563a8;font-weight:600" onclick="mapPjClearAll()">None</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="b0"    onchange="renderMap()"><span class="proj-badge" style="background:#7c3aed;width:9px;height:9px"></span>Batch 0</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="b1ps"  onchange="renderMap()"><span class="proj-badge" style="background:#0891b2;width:9px;height:9px"></span>B1 PS</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="b1nps" onchange="renderMap()"><span class="proj-badge" style="background:#0284c7;width:9px;height:9px"></span>B1 NPS</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="ct"    onchange="renderMap()"><span class="proj-badge" style="background:#d97706;width:9px;height:9px"></span>Ch.Typo</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="b2ps"  onchange="renderMap()"><span class="proj-badge" style="background:#059669;width:9px;height:9px"></span>B2 PS</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="rx"    onchange="renderMap()"><span class="proj-badge" style="background:#78350f;width:9px;height:9px"></span>Recapex</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="p0"    onchange="renderMap()"><span class="proj-badge" style="background:#dc2626;width:9px;height:9px"></span>Resizing</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="d2"    onchange="renderMap()"><span class="proj-badge" style="background:#4c1d95;width:9px;height:9px"></span>D2 Recap</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="out"   onchange="renderMap()"><span class="proj-badge" style="background:#e67e22;width:9px;height:9px"></span>Outdoorisation</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 12px;cursor:pointer;font-size:.82rem"><input type="checkbox" value="rel"   onchange="renderMap()"><span class="proj-badge" style="background:#8e44ad;width:9px;height:9px"></span>Relocalisation</label>
+      </div>
+    </div>
     <select id="mapStFilter" onchange="renderMap()">
       <option value="">All Statuses</option>
       <option value="done">Done</option>
@@ -906,7 +912,7 @@ function listenData(){
         _eagPending--;
         if(_eagPending===0){
           _eagLoaded=true; // unlock all other listeners
-          rebuildSites();buildOvThead();renderOv();renderList();
+          rebuildSites();buildOvThead();renderOv();renderList();renderMap();
         }
       } else {
         // Real-time update after initial load
@@ -1750,6 +1756,39 @@ function _mkIcon(color){
   });
 }
 
+function toggleMapPjDrop(){
+  var d=document.getElementById('mapPjDrop');
+  d.style.display=d.style.display==='none'?'block':'none';
+}
+function _getMapPjSelected(){
+  return Array.from(document.querySelectorAll('#mapPjDrop input[type=checkbox]:checked')).map(c=>c.value);
+}
+function _updateMapPjBtn(){
+  var sel=_getMapPjSelected();
+  var btn=document.getElementById('mapPjBtn');
+  if(!btn)return;
+  btn.textContent=sel.length===0?'All Projects ▼':sel.length===1?
+    document.querySelector('#mapPjDrop input[value="'+sel[0]+'"]+span+span'+('')||sel[0]:
+    sel.length+' Projects ▼';
+  // simpler label
+  if(sel.length===0)btn.textContent='All Projects ▼';
+  else if(sel.length===1){var lb=document.querySelector('#mapPjDrop input[value="'+sel[0]+'"]')?.closest('label')?.textContent?.trim();btn.textContent=(lb||sel[0])+' ▼';}
+  else btn.textContent=sel.length+' Projects ▼';
+}
+function mapPjSelectAll(){
+  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(c=>{c.checked=true;});
+  _updateMapPjBtn();renderMap();
+}
+function mapPjClearAll(){
+  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(c=>{c.checked=false;});
+  _updateMapPjBtn();renderMap();
+}
+// Close dropdown when clicking outside
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('mapPjDropWrap');
+  if(wrap&&!wrap.contains(e.target)){var d=document.getElementById('mapPjDrop');if(d)d.style.display='none';}
+});
+
 function renderMap(){
   if(!document.getElementById('pageMap')||document.getElementById('pageMap').classList.contains('hidden'))return;
   if(!_mapObj){
@@ -1762,7 +1801,8 @@ function renderMap(){
   _mapMarkers.forEach(m=>m.remove());
   _mapMarkers=[];
 
-  var pj=document.getElementById('mapPjFilter')?.value||'';
+  _updateMapPjBtn();
+  var selectedPjs=_getMapPjSelected(); // empty = all projects
   var st=document.getElementById('mapStFilter')?.value||'';
 
   var shown=0, noCoord=0;
@@ -1771,10 +1811,10 @@ function renderMap(){
     var sid=r[0];
     var coord=SITE_COORDS[sid];
     if(!coord){noCoord++;return;}
-    // Project filter
-    if(pj){
-      var inPj=r[PM_MAP[pj]]||_inStaticActiveMap(sid,pj)||_inEquipMap(sid,pj);
-      if(!inPj)return;
+    // Project filter — must be in at least one selected project
+    if(selectedPjs.length>0){
+      var inAny=selectedPjs.some(function(pj){return r[PM_MAP[pj]]||_inStaticActiveMap(sid,pj)||_inEquipMap(sid,pj);});
+      if(!inAny)return;
     }
     // Status
     var status=states[sid]?.status||'none';
