@@ -905,6 +905,7 @@ function listenData(){
     ogCustomSites=snap.val()||{};
     if(curOgView==='ov') renderOgOverview();
     else renderOgSites();
+    renderDashKpis();
   });
   // Per-project status
   DB.ref('/proj_states').on('value', snap=>{
@@ -2120,6 +2121,84 @@ function renderDashKpis(){
   });
   h+='</div>';
   h+='</div>';
+
+  // ── OG Sites KPIs ──
+  if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
+    // Build OG site map (hidden entries excluded, custom entries merged)
+    var _ogKpi={};
+    Object.keys(STATIC_EQUIP_OG_VALS).forEach(function(sid){
+      if(ogCustomSites&&ogCustomSites[sid]&&ogCustomSites[sid]._hidden)return;
+      var yr=(ogCustomSites&&ogCustomSites[sid]&&ogCustomSites[sid].og_year)||STATIC_EQUIP_OG_VALS[sid].og_year||'OG?';
+      _ogKpi[sid]={yr:yr};
+    });
+    if(typeof ogCustomSites!=='undefined'){
+      Object.keys(ogCustomSites).forEach(function(sid){
+        var r=ogCustomSites[sid];
+        if(!r||r._hidden)return;
+        if(!_ogKpi[sid])_ogKpi[sid]={yr:r.og_year||'OG26'};
+      });
+    }
+    var _ogEntries=Object.keys(_ogKpi);
+    var ogTot=_ogEntries.length, ogDn=0, ogPr=0, ogBl=0;
+    var ogByYr={};
+    _ogEntries.forEach(function(sid){
+      var st=(ogStates[sid]||{}).status||'none';
+      if(st==='done')ogDn++;
+      else if(st==='progress')ogPr++;
+      else if(st==='blocked')ogBl++;
+      var yr=_ogKpi[sid].yr;
+      if(!ogByYr[yr])ogByYr[yr]={total:0,done:0};
+      ogByYr[yr].total++;
+      if(st==='done')ogByYr[yr].done++;
+    });
+    // Monthly done (reuse months array from earlier)
+    var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
+    Object.keys(ogStates).forEach(function(sid){
+      var s=ogStates[sid];
+      if(!s||s.status!=='done'||!s.followup)return;
+      var d=_parseFollowupDate(s.followup);
+      if(!d)return;
+      ogMo.forEach(function(m){if(d.getFullYear()===m.year&&d.getMonth()===m.month)m.count++;});
+    });
+    var maxOgMo=Math.max.apply(null,ogMo.map(function(m){return m.count;}))||1;
+    var ogDnPct=ogTot>0?((ogDn/ogTot)*100).toFixed(1):'0.0';
+
+    h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites (outdoorisation)</div>';
+    h+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e6ef;padding:10px 12px;margin-bottom:6px">';
+    // 4 stat cards
+    h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#0f766e">'+ogTot+'</div><div class="kpi-stat-lbl">Total OG sites</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#10b981">'+ogDn+'<span style="font-size:.8rem;font-weight:400;color:#6b7280"> '+ogDnPct+'%</span></div><div class="kpi-stat-lbl">Done</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#f59e0b">'+ogPr+'</div><div class="kpi-stat-lbl">In progress</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#ef4444">'+ogBl+'</div><div class="kpi-stat-lbl">Blocked</div></div>';
+    h+='</div>';
+    // By year breakdown
+    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">By year</div>';
+    Object.keys(ogByYr).sort().forEach(function(yr){
+      var d=ogByYr[yr], p=d.total>0?Math.round((d.done/d.total)*100):0;
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+        +'<span style="font-size:.72rem;color:#0f766e;min-width:36px;font-weight:600">'+yr+'</span>'
+        +'<div style="flex:1;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+          +'<div style="width:'+p+'%;height:100%;background:#0f766e;border-radius:3px"></div>'
+        +'</div>'
+        +'<span style="font-size:.7rem;color:#445;min-width:80px;text-align:right">'+d.done+' / '+d.total+' ('+p+'%)</span>'
+        +'</div>';
+    });
+    // Monthly done
+    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Done per month</div>';
+    ogMo.forEach(function(m){
+      var isCur=m.year===curY&&m.month===curM;
+      var pct=Math.round((m.count/maxOgMo)*100);
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+        +'<span style="font-size:.7rem;min-width:26px;color:'+(isCur?'#2563a8':'#778')+';font-weight:'+(isCur?'600':'400')+'">'+m.label+'</span>'
+        +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+          +'<div style="width:'+pct+'%;height:100%;background:'+(isCur?'#2563a8':'#0f766e')+';border-radius:3px"></div>'
+        +'</div>'
+        +'<span style="font-size:.7rem;min-width:22px;text-align:right;color:'+(isCur?'#2563a8':'#445')+'">'+m.count+'</span>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
 
   panel.innerHTML=h;
 
@@ -5218,6 +5297,7 @@ function showOgPage(view) {
       ogStates = snap.val()||{};
       if(curOgView==='ov') renderOgOverview();
       else renderOgSites();
+      renderDashKpis();
     });
   }
 }
