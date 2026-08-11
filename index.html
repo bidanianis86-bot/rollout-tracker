@@ -903,16 +903,20 @@ function listenData(){
   // Listen to OG custom sites
   DB.ref('/og_custom_sites').on('value', snap=>{
     ogCustomSites=snap.val()||{};
-    if(curOgView==='ov') renderOgOverview();
-    else renderOgSites();
+    var _ogOvPg=document.getElementById('pageOgOv');
+    var _ogSiPg=document.getElementById('pageOgSites');
+    if(_ogOvPg&&!_ogOvPg.classList.contains('hidden'))renderOgOverview();
+    else if(_ogSiPg&&!_ogSiPg.classList.contains('hidden'))renderOgSites();
     renderDashKpis();
   });
   // Listen to OG states at startup so Dashboard KPIs always have data
   ogStateListener=true;
   DB.ref('/og_states').on('value', snap=>{
     ogStates=snap.val()||{};
-    if(curOgView==='ov') renderOgOverview();
-    else if(curOgView==='sites') renderOgSites();
+    var _ogOvPg=document.getElementById('pageOgOv');
+    var _ogSiPg=document.getElementById('pageOgSites');
+    if(_ogOvPg&&!_ogOvPg.classList.contains('hidden'))renderOgOverview();
+    else if(_ogSiPg&&!_ogSiPg.classList.contains('hidden'))renderOgSites();
     renderDashKpis();
   });
   // Per-project status
@@ -1877,6 +1881,7 @@ document.addEventListener('click',function(e){
 function renderMap(){
   if(!document.getElementById('pageMap')||document.getElementById('pageMap').classList.contains('hidden'))return;
   if(!_mapObj){
+    if(typeof L==='undefined'){setTimeout(renderMap,500);return;}
     _mapObj=L.map('mapContainer').setView([14.4,-14.5],7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
       attribution:'© OpenStreetMap contributors',maxZoom:18
@@ -1934,7 +1939,7 @@ function renderMap(){
   var el=document.getElementById('mapCount');if(el)el.textContent=shown+' sites';
   var nc=document.getElementById('mapNoCoord');if(nc)nc.textContent=noCoord?' ('+noCoord+' no GPS)':'';
   // Fix map size after reveal
-  setTimeout(function(){if(_mapObj)_mapObj.invalidateSize();},50);
+  setTimeout(function(){if(_mapObj)_mapObj.invalidateSize();},300);
   renderDashKpis();
 }
 
