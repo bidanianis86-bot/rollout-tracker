@@ -11,10 +11,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#222;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{background:linear-gradient(135deg,#1a3c5e,#2563a8);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0}
-header h1{font-size:1.05rem;font-weight:700;flex:1}
-.nav-tabs{display:flex;gap:2px}
-.nav-tab{padding:6px 15px;border-radius:6px 6px 0 0;font-size:.83rem;font-weight:600;cursor:pointer;color:rgba(255,255,255,.7);border:none;background:transparent;transition:.15s}
+header{background:linear-gradient(135deg,#1a3c5e,#2563a8);color:#fff;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+header h1{font-size:.95rem;font-weight:700;white-space:nowrap;flex-shrink:0}
+.nav-tabs{display:flex;gap:1px}
+.nav-tab{padding:4px 7px;border-radius:5px 5px 0 0;font-size:.68rem;font-weight:600;cursor:pointer;color:rgba(255,255,255,.7);border:none;background:transparent;transition:.15s;white-space:nowrap}
 .nav-tab:hover{color:#fff;background:rgba(255,255,255,.12)}
 .nav-tab.active{color:#1a3c5e;background:#f0f2f5}
 .user-bar{display:flex;align-items:center;gap:7px;font-size:.8rem}
@@ -191,7 +191,7 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
 .config-input:focus{border-color:#2563a8}
 .realtime-badge{display:inline-flex;align-items:center;gap:4px;background:#ecfdf5;border:1px solid #86efac;color:#166534;border-radius:5px;padding:2px 8px;font-size:.73rem;font-weight:600}
 
-.nav-tabs{display:flex;gap:2px;overflow-x:auto;max-width:65vw}
+.nav-tabs{display:flex;gap:1px;flex:1;overflow-x:auto;min-width:0}
 .nav-tabs::-webkit-scrollbar{height:3px}.nav-tabs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:3px}
 .nav-sep{width:1px;background:rgba(255,255,255,.25);margin:4px 3px;flex-shrink:0}
 .proj-badge{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;flex-shrink:0}
@@ -268,10 +268,10 @@ __dbg('DOM ready, awaiting script...');
 <header>
   <h1>&#128205; Rollout Tracker 2026 &mdash; Senegal</h1>
   <div class="nav-tabs">
-    <button class="nav-tab active" id="tabMap" onclick="showPage('map')">&#128202; Dashboard</button>
+    <button class="nav-tab active" id="tabMap" onclick="showPage('map')">Dashboard</button>
     <div class="nav-sep"></div>
-    <button class="nav-tab" id="tabOv" onclick="showPage('ov')">&#128202; Overview</button>
-    <button class="nav-tab" id="tabTr" onclick="showPage('tr')">&#128221; Tracker</button>
+    <button class="nav-tab" id="tabOv" onclick="showPage('ov')">Overview</button>
+    <button class="nav-tab" id="tabTr" onclick="showPage('tr')">Tracker</button>
     <div class="nav-sep"></div>
     <button class="nav-tab" id="tabB0"   onclick="showProjPage('b0')"  ><span class="proj-badge" style="background:#7c3aed"></span>Batch 0</button>
     <button class="nav-tab" id="tabB1ps" onclick="showProjPage('b1ps')"><span class="proj-badge" style="background:#0891b2"></span>B1 PS</button>
@@ -281,9 +281,9 @@ __dbg('DOM ready, awaiting script...');
     <button class="nav-tab" id="tabRx"   onclick="showProjPage('rx')"  ><span class="proj-badge" style="background:#78350f"></span>Recapex</button>
     <button class="nav-tab" id="tabP0"   onclick="showProjPage('p0')"  ><span class="proj-badge" style="background:#dc2626"></span>Resizing</button>
     <button class="nav-tab" id="tabD2"   onclick="showProjPage('d2')"  ><span class="proj-badge" style="background:#4c1d95"></span>D2 Recap</button>
-    <button class="nav-tab" id="tabOut"  onclick="showProjPage('out')" ><span class="proj-badge" style="background:#e67e22"></span>Outdoorisation</button>
-    <button class="nav-tab" id="tabRel"  onclick="showProjPage('rel')" ><span class="proj-badge" style="background:#8e44ad"></span>Relocalisation</button>
-    <button class="nav-tab" id="tabOgOv" onclick="showOgPage('ov')"><span class="proj-badge" style="background:#0f766e"></span>OG Overview</button>
+    <button class="nav-tab" id="tabOut"  onclick="showProjPage('out')" ><span class="proj-badge" style="background:#e67e22"></span>Outdoor.</button>
+    <button class="nav-tab" id="tabRel"  onclick="showProjPage('rel')" ><span class="proj-badge" style="background:#8e44ad"></span>Relocal.</button>
+    <button class="nav-tab" id="tabOgOv" onclick="showOgPage('ov')"><span class="proj-badge" style="background:#0f766e"></span>OG Ov.</button>
     <button class="nav-tab" id="tabOgSites" onclick="showOgPage('sites')"><span class="proj-badge" style="background:#0f766e"></span>OG Sites</button>
   </div>
   <div class="user-bar">
@@ -2002,7 +2002,73 @@ function renderDashKpis(){
   h+='</div>';
   h+='<p style="font-size:.67rem;color:#aaa;margin-top:4px">Monthly count uses the follow-up date field. Sites without a date are not counted.</p>';
 
+  // ── Site completion breakdown ──
+  // For each site in ≥1 project: classify as 100% done, partially done (in progress), not started, blocked
+  var cs={total:0,full:0,partial:0,notstarted:0,blocked:0};
+  var byPrjCount={'1':{total:0,done:0},'2':{total:0,done:0},'3+':{total:0,done:0}};
+  SITES.forEach(function(r){
+    if(!r||!r[0])return;
+    var sid=r[0];
+    var nPrj=0;
+    _DASH_PROJS.forEach(function(p){if(r[p.idx]||_inStaticActiveMap(sid,p.key)||_inEquipMap(sid,p.key))nPrj++;});
+    if(nPrj===0)return;
+    cs.total++;
+    var st=(states[sid]||{}).status;
+    if(st==='done'){cs.full++;}
+    else if(st==='progress'){cs.partial++;}
+    else if(st==='blocked'){cs.blocked++;}
+    else{cs.notstarted++;}
+    var bk=nPrj===1?'1':nPrj===2?'2':'3+';
+    byPrjCount[bk].total++;
+    if(st==='done')byPrjCount[bk].done++;
+  });
+  var fullPct=cs.total>0?((cs.full/cs.total)*100).toFixed(1):'0.0';
+  var partPct=cs.total>0?((cs.partial/cs.total)*100).toFixed(1):'0.0';
+  var notPct =cs.total>0?((cs.notstarted/cs.total)*100).toFixed(1):'0.0';
+
+  h+='<div class="kpi-sec-title" style="margin-top:14px">Site completion (all assigned projects)</div>';
+  // Stacked progress bar
+  h+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e6ef;padding:10px 12px;margin-bottom:6px">';
+  h+='<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:8px">';
+  h+='<div title="100% done" style="width:'+fullPct+'%;background:#10b981;transition:width .3s"></div>';
+  h+='<div title="In progress" style="width:'+partPct+'%;background:#f59e0b"></div>';
+  h+='<div title="Blocked" style="width:'+(cs.total>0?((cs.blocked/cs.total)*100).toFixed(1):'0')+'%;background:#ef4444"></div>';
+  h+='<div title="Not started" style="width:'+notPct+'%;background:#e5e7eb"></div>';
+  h+='</div>';
+  // Legend rows
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+  h+=_csRow('#10b981','100% done',cs.full,fullPct);
+  h+=_csRow('#f59e0b','Partially done',cs.partial,partPct);
+  h+=_csRow('#e5e7eb','Not started',cs.notstarted,notPct,'#445');
+  h+=_csRow('#ef4444','Blocked',cs.blocked,(cs.total>0?((cs.blocked/cs.total)*100).toFixed(1):'0'));
+  h+='</div>';
+  h+='<div style="border-top:1px solid #f0f4f8;margin-top:8px;padding-top:8px">';
+  h+='<div style="font-size:.68rem;color:#778;margin-bottom:4px;font-weight:600">By number of projects per site</div>';
+  ['1','2','3+'].forEach(function(k){
+    var b=byPrjCount[k];
+    if(b.total===0)return;
+    var p=Math.round((b.done/b.total)*100);
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+      +'<span style="font-size:.68rem;color:#445;min-width:60px">'+k+' project'+(k==='1'?'':'s')+'</span>'
+      +'<div style="flex:1;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+p+'%;height:100%;background:#10b981;border-radius:3px"></div>'
+      +'</div>'
+      +'<span style="font-size:.68rem;color:#445;min-width:60px;text-align:right">'+b.done+'/'+b.total+' ('+p+'%)</span>'
+      +'</div>';
+  });
+  h+='</div>';
+  h+='</div>';
+
   panel.innerHTML=h;
+}
+
+function _csRow(color,label,count,pct,textColor){
+  return '<div style="display:flex;align-items:center;gap:5px">'
+    +'<span style="width:8px;height:8px;border-radius:2px;background:'+color+';display:inline-block;flex-shrink:0"></span>'
+    +'<span style="font-size:.7rem;color:'+(textColor||color)+';flex:1">'+label+'</span>'
+    +'<span style="font-size:.7rem;font-weight:600;color:#1a3c5e">'+count+'</span>'
+    +'<span style="font-size:.66rem;color:#778;min-width:34px;text-align:right">'+pct+'%</span>'
+    +'</div>';
 }
 
 /* ══ Username ══ */
