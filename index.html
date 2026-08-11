@@ -910,7 +910,6 @@ function listenData(){
     renderDashKpis();
   });
   // Listen to OG states at startup so Dashboard KPIs always have data
-  ogStateListener=true;
   DB.ref('/og_states').on('value', snap=>{
     ogStates=snap.val()||{};
     var _ogOvPg=document.getElementById('pageOgOv');
