@@ -907,6 +907,14 @@ function listenData(){
     else renderOgSites();
     renderDashKpis();
   });
+  // Listen to OG states at startup so Dashboard KPIs always have data
+  ogStateListener=true;
+  DB.ref('/og_states').on('value', snap=>{
+    ogStates=snap.val()||{};
+    if(curOgView==='ov') renderOgOverview();
+    else if(curOgView==='sites') renderOgSites();
+    renderDashKpis();
+  });
   // Per-project status
   DB.ref('/proj_states').on('value', snap=>{
     projStates=snap.val()||{};
