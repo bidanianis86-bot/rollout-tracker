@@ -2027,12 +2027,12 @@ function renderDashKpis(){
 
   // Per-project table
   h+='<div class="kpi-sec-title">Done per project <span style="font-size:.6rem;color:#aaa;font-weight:400;margin-left:4px">click to filter map</span></div>';
-  h+='<div class="kpi-proj-table">';
+  h+='<div class="kpi-proj-table" id="dashProjTable">';
   projRows.forEach(function(p){
     var pct=p.total>0?Math.round((p.done/p.total)*100):0;
     var isSel=_dashProjFilter.active&&_dashProjFilter.key===p.key;
     var rowBg=isSel?'background:#eff6ff;border-left:3px solid '+p.color+';padding-left:7px':'';
-    h+='<div class="kpi-proj-row" style="cursor:pointer;'+rowBg+'" onclick="dashClickProj(\''+p.key+'\',\''+p.label+'\')" title="Show '+p.label+' sites on map">'
+    h+='<div class="kpi-proj-row" data-pkey="'+p.key+'" data-plabel="'+p.label+'" style="cursor:pointer;'+rowBg+'" title="Show '+p.label+' on map">'
       +'<span style="width:8px;height:8px;border-radius:50%;background:'+p.color+';display:inline-block;flex-shrink:0"></span>'
       +'<span style="flex:1;font-size:.76rem;color:#2d3748;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:'+(isSel?'600':'400')+'">'+p.label+'</span>'
       +'<span style="font-size:.72rem;color:#445;min-width:52px;text-align:right">'+p.done+' / '+p.total+'</span>'
@@ -2046,14 +2046,14 @@ function renderDashKpis(){
 
   // Monthly bars
   h+='<div class="kpi-sec-title">Done per month <span style="font-size:.6rem;color:#aaa;font-weight:400;margin-left:4px">click to filter map</span></div>';
-  h+='<div class="kpi-month-block">';
+  h+='<div class="kpi-month-block" id="dashMonthBlock">';
   months.forEach(function(m){
     var isCur=m.year===curY&&m.month===curM;
     var isSel=_dashMonthFilter.active&&_dashMonthFilter.year===m.year&&_dashMonthFilter.month===m.month;
     var pct=Math.round((m.count/maxM)*100);
     var barColor=isSel?'#1d4ed8':isCur?'#2563a8':'#10b981';
     var rowBg=isSel?'background:#eff6ff;border-radius:5px;padding:1px 4px;margin:0 -4px;':'';
-    h+='<div class="kpi-month-row" style="cursor:pointer;'+rowBg+'" onclick="dashClickMonth('+m.year+','+m.month+',\''+m.label+' '+m.year+'\')" title="Show '+m.count+' sites done in '+m.label+'">'
+    h+='<div class="kpi-month-row" data-my="'+m.year+'" data-mm="'+m.month+'" data-ml="'+m.label+' '+m.year+'" style="cursor:pointer;'+rowBg+'" title="Show '+m.count+' sites done in '+m.label+'">'
       +'<span style="font-size:.72rem;min-width:26px;color:'+(isSel?'#1d4ed8':isCur?'#2563a8':'#778')+';font-weight:'+(isSel||isCur?'600':'400')+'">'+m.label+'</span>'
       +'<div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">'
         +'<div style="width:'+pct+'%;height:100%;background:'+barColor+';border-radius:4px;transition:width .3s"></div>'
@@ -2122,6 +2122,18 @@ function renderDashKpis(){
   h+='</div>';
 
   panel.innerHTML=h;
+
+  // Attach click listeners after innerHTML is set (more reliable than onclick attributes)
+  panel.querySelectorAll('[data-pkey]').forEach(function(el){
+    el.addEventListener('click',function(){
+      dashClickProj(this.getAttribute('data-pkey'),this.getAttribute('data-plabel'));
+    });
+  });
+  panel.querySelectorAll('[data-my]').forEach(function(el){
+    el.addEventListener('click',function(){
+      dashClickMonth(parseInt(this.getAttribute('data-my')),parseInt(this.getAttribute('data-mm')),this.getAttribute('data-ml'));
+    });
+  });
 }
 
 function _csRow(color,label,count,pct,textColor){
