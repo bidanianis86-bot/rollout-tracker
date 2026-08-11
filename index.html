@@ -1963,6 +1963,9 @@ var _DASH_PROJS=[
 
 function _parseFollowupDate(str){
   if(!str||typeof str!=='string')return null;
+  // Excel serial numbers (e.g. 46113 = Apr 1 2026) — must check before new Date() which misparses them
+  var n=parseFloat(str);
+  if(!isNaN(n)&&n>40000&&n<60000)return new Date(Math.round((n-25569)*86400000));
   var d=new Date(str);
   if(!isNaN(d.getTime()))return d;
   // try DD/MM/YYYY
