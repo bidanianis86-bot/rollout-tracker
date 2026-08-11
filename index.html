@@ -256,11 +256,11 @@ tbody td{padding:6px 7px;border-bottom:1px solid #eef1f6;white-space:nowrap}
 .kpi-month-row:last-child{margin-bottom:0}
 </style>
 </head><body>
-<div id="__dbg" style="position:fixed;bottom:10px;right:10px;background:#1e3a5f;color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;font-family:monospace;z-index:99999;max-width:320px;line-height:1.6">
-<b>Debug:</b> <span id="__dbg_txt">Script loading...</span></div>
+<div id="__dbg" style="position:fixed;bottom:10px;right:10px;background:#1e3a5f;color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;font-family:monospace;z-index:99999;max-width:320px;line-height:1.6;display:none">
+<b>Error:</b> <span id="__dbg_txt"></span></div>
 <script>
-function __dbg(msg){ var el=document.getElementById('__dbg_txt'); if(el) el.textContent=msg; console.log('DBG:',msg); }
-window.onerror = function(msg,src,line){ __dbg('JS ERROR line '+line+': '+msg); };
+function __dbg(msg){ console.log('DBG:',msg); }
+window.onerror = function(msg,src,line){ var el=document.getElementById('__dbg'); var et=document.getElementById('__dbg_txt'); if(el)el.style.display='block'; if(et)et.textContent='JS ERROR line '+line+': '+msg; };
 __dbg('DOM ready, awaiting script...');
 </script>
 
@@ -2122,38 +2122,26 @@ function renderDashKpis(){
   h+='</div>';
   h+='</div>';
 
-  // ── OG Sites KPIs ──
+  // ── OG Sites KPIs ── (same data source as OG Overview: STATIC_EQUIP_OG_VALS only)
   if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
-    // Build OG site map (hidden entries excluded, custom entries merged)
-    var _ogKpi={};
-    Object.keys(STATIC_EQUIP_OG_VALS).forEach(function(sid){
-      if(ogCustomSites&&ogCustomSites[sid]&&ogCustomSites[sid]._hidden)return;
-      var yr=(ogCustomSites&&ogCustomSites[sid]&&ogCustomSites[sid].og_year)||STATIC_EQUIP_OG_VALS[sid].og_year||'OG?';
-      _ogKpi[sid]={yr:yr};
-    });
-    if(typeof ogCustomSites!=='undefined'){
-      Object.keys(ogCustomSites).forEach(function(sid){
-        var r=ogCustomSites[sid];
-        if(!r||r._hidden)return;
-        if(!_ogKpi[sid])_ogKpi[sid]={yr:r.og_year||'OG26'};
-      });
-    }
-    var _ogEntries=Object.keys(_ogKpi);
-    var ogTot=_ogEntries.length, ogDn=0, ogPr=0, ogBl=0;
+    var _ogAll=Object.entries(STATIC_EQUIP_OG_VALS);
+    var ogTot=_ogAll.length, ogDn=0, ogPr=0, ogBl=0;
     var ogByYr={};
-    _ogEntries.forEach(function(sid){
+    _ogAll.forEach(function(e){
+      var sid=e[0], eq=e[1];
       var st=(ogStates[sid]||{}).status||'none';
       if(st==='done')ogDn++;
       else if(st==='progress')ogPr++;
       else if(st==='blocked')ogBl++;
-      var yr=_ogKpi[sid].yr;
+      var yr=eq.og_year||'OG?';
       if(!ogByYr[yr])ogByYr[yr]={total:0,done:0};
       ogByYr[yr].total++;
       if(st==='done')ogByYr[yr].done++;
     });
-    // Monthly done (reuse months array from earlier)
+    // Monthly done — only count sids that exist in STATIC_EQUIP_OG_VALS
     var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
-    Object.keys(ogStates).forEach(function(sid){
+    _ogAll.forEach(function(e){
+      var sid=e[0];
       var s=ogStates[sid];
       if(!s||s.status!=='done'||!s.followup)return;
       var d=_parseFollowupDate(s.followup);
@@ -2163,7 +2151,7 @@ function renderDashKpis(){
     var maxOgMo=Math.max.apply(null,ogMo.map(function(m){return m.count;}))||1;
     var ogDnPct=ogTot>0?((ogDn/ogTot)*100).toFixed(1):'0.0';
 
-    h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites (outdoorisation)</div>';
+    h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites</div>';
     h+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e6ef;padding:10px 12px;margin-bottom:6px">';
     // 4 stat cards
     h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
