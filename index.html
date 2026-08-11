@@ -767,6 +767,7 @@ __dbg('DOM ready, awaiting script...');
         <option value="none">No Status</option>
       </select>
       <span class="map-stat" id="mapCount">— sites</span>
+      <span id="dashFilterBadge" style="display:none;background:#dbeafe;border:1px solid #93c5fd;border-radius:5px;padding:2px 8px;font-size:.7rem;color:#1d4ed8;cursor:pointer;font-weight:600" onclick="clearDashFilter()">&#10005; <span id="dashFilterLabel"></span></span>
       <div class="map-legend">
         <span><i class="leg-dot" style="background:#10b981"></i> Done</span>
         <span><i class="leg-dot" style="background:#f59e0b"></i> Prog.</span>
@@ -1766,6 +1767,8 @@ function showPage(p){
 
 /* ══ Map ══ */
 var _mapObj=null, _mapMarkers=[];
+var _dashMonthFilter={active:false,year:0,month:0,label:''};
+var _dashProjFilter={active:false,key:''};
 var ST_COLOR={done:'#10b981',progress:'#f59e0b',blocked:'#ef4444',none:'#94a3b8'};
 var ST_LABEL={done:'Done',progress:'In Progress',blocked:'Blocked',none:'No Status'};
 var PM_MAP={b0:4,b1ps:5,b1nps:6,ct:7,b2ps:8,p0:14,rx:16,d2:18,out:19,rel:20};
@@ -1782,6 +1785,54 @@ function toggleMapPjDrop(){
   var d=document.getElementById('mapPjDrop');
   if(!d)return;
   d.style.display=(d.style.display==='block')?'none':'block';
+}
+function dashClickMonth(year,month,label){
+  if(_dashMonthFilter.active&&_dashMonthFilter.year===year&&_dashMonthFilter.month===month){
+    _dashMonthFilter.active=false;
+  } else {
+    _dashMonthFilter={active:true,year:year,month:month,label:label};
+    _dashProjFilter.active=false;
+  }
+  _applyDashFilterBadge();
+  renderDashKpis();
+  renderMap();
+}
+function dashClickProj(key,label){
+  if(_dashProjFilter.active&&_dashProjFilter.key===key){
+    _dashProjFilter.active=false;
+    document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(function(c){c.checked=false;});
+  } else {
+    _dashProjFilter={active:true,key:key,label:label};
+    _dashMonthFilter.active=false;
+    document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(function(c){c.checked=(c.value===key);});
+  }
+  _updateMapPjBtn();
+  _applyDashFilterBadge();
+  renderDashKpis();
+  renderMap();
+}
+function clearDashFilter(){
+  _dashMonthFilter.active=false;
+  _dashProjFilter.active=false;
+  document.querySelectorAll('#mapPjDrop input[type=checkbox]').forEach(function(c){c.checked=false;});
+  _updateMapPjBtn();
+  _applyDashFilterBadge();
+  renderDashKpis();
+  renderMap();
+}
+function _applyDashFilterBadge(){
+  var badge=document.getElementById('dashFilterBadge');
+  var lbl=document.getElementById('dashFilterLabel');
+  if(!badge)return;
+  if(_dashMonthFilter.active){
+    badge.style.display='inline-block';
+    if(lbl)lbl.textContent=_dashMonthFilter.label;
+  } else if(_dashProjFilter.active){
+    badge.style.display='inline-block';
+    if(lbl)lbl.textContent=_dashProjFilter.label;
+  } else {
+    badge.style.display='none';
+  }
 }
 function _getMapPjSelected(){
   return Array.from(document.querySelectorAll('#mapPjDrop input[type=checkbox]:checked')).map(function(c){return c.value;});
@@ -1844,6 +1895,12 @@ function renderMap(){
     // Status
     var status=states[sid]?.status||'none';
     if(st&&status!==st)return;
+    // Dashboard month filter
+    if(_dashMonthFilter.active){
+      if(status!=='done')return;
+      var _fd=_parseFollowupDate((states[sid]||{}).followup);
+      if(!_fd||_fd.getFullYear()!==_dashMonthFilter.year||_fd.getMonth()!==_dashMonthFilter.month)return;
+    }
     // Project badges for popup
     var pjBadges=ALL_PROJS.filter(function(p){
       return p.key!=='og'&&(r[p.idx]||_inStaticActiveMap(sid,p.key)||_inEquipMap(sid,p.key));
@@ -1969,13 +2026,15 @@ function renderDashKpis(){
   h+='</div>';
 
   // Per-project table
-  h+='<div class="kpi-sec-title">Done per project</div>';
+  h+='<div class="kpi-sec-title">Done per project <span style="font-size:.6rem;color:#aaa;font-weight:400;margin-left:4px">click to filter map</span></div>';
   h+='<div class="kpi-proj-table">';
   projRows.forEach(function(p){
     var pct=p.total>0?Math.round((p.done/p.total)*100):0;
-    h+='<div class="kpi-proj-row">'
+    var isSel=_dashProjFilter.active&&_dashProjFilter.key===p.key;
+    var rowBg=isSel?'background:#eff6ff;border-left:3px solid '+p.color+';padding-left:7px':'';
+    h+='<div class="kpi-proj-row" style="cursor:pointer;'+rowBg+'" onclick="dashClickProj(\''+p.key+'\',\''+p.label+'\')" title="Show '+p.label+' sites on map">'
       +'<span style="width:8px;height:8px;border-radius:50%;background:'+p.color+';display:inline-block;flex-shrink:0"></span>'
-      +'<span style="flex:1;font-size:.76rem;color:#2d3748;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.label+'</span>'
+      +'<span style="flex:1;font-size:.76rem;color:#2d3748;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:'+(isSel?'600':'400')+'">'+p.label+'</span>'
       +'<span style="font-size:.72rem;color:#445;min-width:52px;text-align:right">'+p.done+' / '+p.total+'</span>'
       +'<div style="width:50px;height:5px;background:#e5e7eb;border-radius:3px;flex-shrink:0;overflow:hidden">'
         +'<div style="width:'+pct+'%;height:100%;background:'+p.color+';border-radius:3px"></div>'
@@ -1986,17 +2045,20 @@ function renderDashKpis(){
   h+='</div>';
 
   // Monthly bars
-  h+='<div class="kpi-sec-title">Done per month</div>';
+  h+='<div class="kpi-sec-title">Done per month <span style="font-size:.6rem;color:#aaa;font-weight:400;margin-left:4px">click to filter map</span></div>';
   h+='<div class="kpi-month-block">';
   months.forEach(function(m){
     var isCur=m.year===curY&&m.month===curM;
+    var isSel=_dashMonthFilter.active&&_dashMonthFilter.year===m.year&&_dashMonthFilter.month===m.month;
     var pct=Math.round((m.count/maxM)*100);
-    h+='<div class="kpi-month-row">'
-      +'<span style="font-size:.72rem;min-width:26px;color:'+(isCur?'#2563a8':'#778')+';font-weight:'+(isCur?'600':'400')+'">'+m.label+'</span>'
+    var barColor=isSel?'#1d4ed8':isCur?'#2563a8':'#10b981';
+    var rowBg=isSel?'background:#eff6ff;border-radius:5px;padding:1px 4px;margin:0 -4px;':'';
+    h+='<div class="kpi-month-row" style="cursor:pointer;'+rowBg+'" onclick="dashClickMonth('+m.year+','+m.month+',\''+m.label+' '+m.year+'\')" title="Show '+m.count+' sites done in '+m.label+'">'
+      +'<span style="font-size:.72rem;min-width:26px;color:'+(isSel?'#1d4ed8':isCur?'#2563a8':'#778')+';font-weight:'+(isSel||isCur?'600':'400')+'">'+m.label+'</span>'
       +'<div style="flex:1;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden">'
-        +'<div style="width:'+pct+'%;height:100%;background:'+(isCur?'#2563a8':'#10b981')+';border-radius:4px;transition:width .3s"></div>'
+        +'<div style="width:'+pct+'%;height:100%;background:'+barColor+';border-radius:4px;transition:width .3s"></div>'
       +'</div>'
-      +'<span style="font-size:.72rem;min-width:24px;text-align:right;color:'+(isCur?'#2563a8':'#445')+'">'+m.count+'</span>'
+      +'<span style="font-size:.72rem;min-width:24px;text-align:right;color:'+(isSel?'#1d4ed8':isCur?'#2563a8':'#445')+'">'+m.count+'</span>'
       +'</div>';
   });
   h+='</div>';
