@@ -736,7 +736,10 @@ __dbg('DOM ready, awaiting script...');
         <option value="Blocked">Blocked</option>
       </select>
       <button class="btn btn-primary" onclick="addPlanningRow()" style="background:#1a5fa8;color:#fff;border-color:#1a5fa8">&#43; Add row</button>
+      <button class="btn" onclick="document.getElementById('planUploadInput').click()" style="background:#0f766e;color:#fff;border-color:#0f766e">&#128228; Upload Excel</button>
+      <input type="file" id="planUploadInput" accept=".xlsx,.xls" style="display:none" onchange="importPlanningExcel(this)">
       <span id="planRc" style="font-size:.78rem;color:#888;margin-left:4px"></span>
+      <span id="planUploadMsg" style="font-size:.78rem;margin-left:6px"></span>
     </div>
   </div>
   <div style="flex:1;overflow:auto;padding:0 24px 24px">
@@ -5465,6 +5468,104 @@ function deletePlanningRow(key){
   if(!DB)return;
   if(_planEditKey===key)_planEditKey=null;
   DB.ref('/planning/'+key).remove();
+}
+
+function importPlanningExcel(input){
+  var msg=document.getElementById('planUploadMsg');
+  if(!input.files||!input.files[0]){return;}
+  if(!DB){if(msg){msg.style.color='#c0392b';msg.textContent='Not connected to Firebase.';}return;}
+  var file=input.files[0];
+  input.value=''; // reset so same file can be re-uploaded
+  if(msg){msg.style.color='#1a5fa8';msg.textContent='Reading file…';}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'uint8array',cellDates:true});
+      // Read first sheet named "Planning" or fall back to first sheet
+      var sheetName=wb.SheetNames.indexOf('Planning')>=0?'Planning':wb.SheetNames[0];
+      var ws=wb.Sheets[sheetName];
+      // Convert to array of arrays (raw) — skip rows 1-4 (title, legend, spacer, header), row 5 = hint
+      var aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'YYYY-MM-DD'});
+      // Find the header row (contains "Site")
+      var headerRow=-1;
+      for(var i=0;i<aoa.length;i++){
+        if(aoa[i]&&aoa[i][0]==='Site'){headerRow=i;break;}
+      }
+      if(headerRow<0){
+        if(msg){msg.style.color='#c0392b';msg.textContent='Could not find header row (expected "Site" in column A).';}
+        return;
+      }
+      // Map header names → col index
+      var hdr=aoa[headerRow];
+      function ci(name){return hdr.indexOf(name);}
+      var iSite=ci('Site'),iDet=ci('Details of work'),iReq=ci('Request date from WH'),
+          iDel=ci('Delivery date in site'),iLog=ci('Logistics Status'),
+          iIs=ci('Install. start'),iIe=ci('Install. end'),
+          iSt=ci('Work task status'),iTm=ci('Team');
+
+      function _toIso(v){
+        if(!v||String(v).trim()==='')return'';
+        var s=String(v).trim();
+        // Already YYYY-MM-DD
+        if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+        // DD/MM/YYYY
+        var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+        // Excel serial (cellDates:true should handle, but fallback)
+        var n=parseFloat(s);
+        if(!isNaN(n)&&n>40000&&n<60000){
+          var d=new Date(Math.round((n-25569)*86400000));
+          return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        }
+        return s;
+      }
+
+      var VALID_LOG={'WH':1,'Transit':1,'On site':1};
+      var VALID_ST={'Pending':1,'In Progress':1,'Done':1,'Blocked':1};
+
+      var pushed=0,skipped=0;
+      var updates={};
+      for(var r=headerRow+2;r<aoa.length;r++){ // +2 to skip hint row (row 5 in sheet)
+        var row=aoa[r];
+        if(!row||!row[iSite]||String(row[iSite]).trim()==='')continue;
+        var site=String(row[iSite]).trim();
+        // Skip the example row
+        if(site==='DAKBV001'&&r===headerRow+2)continue;
+        var logVal=iLog>=0?String(row[iLog]||'').trim():'WH';
+        if(!VALID_LOG[logVal])logVal='WH';
+        var stVal=iSt>=0?String(row[iSt]||'').trim():'Pending';
+        if(!VALID_ST[stVal])stVal='Pending';
+        var entry={
+          site:site,
+          details:iDet>=0?String(row[iDet]||'').trim():'',
+          reqwh:iReq>=0?_toIso(row[iReq]):'',
+          deliv:iDel>=0?_toIso(row[iDel]):'',
+          log:logVal,
+          istart:iIs>=0?_toIso(row[iIs]):'',
+          iend:iIe>=0?_toIso(row[iIe]):'',
+          status:stVal,
+          team:iTm>=0?String(row[iTm]||'').trim():''
+        };
+        var newKey=DB.ref('/planning').push().key;
+        updates['/planning/'+newKey]=entry;
+        pushed++;
+      }
+      if(pushed===0){
+        if(msg){msg.style.color='#d97706';msg.textContent='No data rows found (all sites were empty).';}
+        return;
+      }
+      DB.ref().update(updates).then(function(){
+        if(msg){msg.style.color='#0f766e';msg.textContent=pushed+' row'+(pushed===1?'':'s')+' imported successfully.';}
+        setTimeout(function(){if(msg)msg.textContent='';},5000);
+      }).catch(function(err){
+        if(msg){msg.style.color='#c0392b';msg.textContent='Firebase error: '+err.message;}
+      });
+    }catch(ex){
+      if(msg){msg.style.color='#c0392b';msg.textContent='Error reading file: '+ex.message;}
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 /* ══ OG PAGES ══ */
