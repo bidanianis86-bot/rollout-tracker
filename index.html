@@ -737,6 +737,9 @@ __dbg('DOM ready, awaiting script...');
       </select>
       <button class="btn btn-primary" onclick="addPlanningRow()" style="background:#1a5fa8;color:#fff;border-color:#1a5fa8">&#43; Add row</button>
       <button class="btn" onclick="document.getElementById('planUploadInput').click()" style="background:#0f766e;color:#fff;border-color:#0f766e">&#128228; Upload Excel</button>
+      <label style="font-size:.78rem;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="planReplaceAll" style="width:13px;height:13px"> Replace all
+      </label>
       <input type="file" id="planUploadInput" accept=".xlsx,.xls" style="display:none" onchange="importPlanningExcel(this)">
       <span id="planRc" style="font-size:.78rem;color:#888;margin-left:4px"></span>
       <span id="planUploadMsg" style="font-size:.78rem;margin-left:6px"></span>
@@ -5566,12 +5569,24 @@ function importPlanningExcel(input){
         if(msg){msg.style.color='#d97706';msg.textContent='No data rows found (all sites were empty).';}
         return;
       }
-      DB.ref().update(updates).then(function(){
-        if(msg){msg.style.color='#0f766e';msg.textContent=pushed+' row'+(pushed===1?'':'s')+' imported successfully.';}
-        setTimeout(function(){if(msg)msg.textContent='';},5000);
-      }).catch(function(err){
-        if(msg){msg.style.color='#c0392b';msg.textContent='Firebase error: '+err.message;}
-      });
+      var doImport=function(){
+        DB.ref().update(updates).then(function(){
+          if(msg){msg.style.color='#0f766e';msg.textContent=pushed+' row'+(pushed===1?'':'s')+' imported successfully.';}
+          var cb=document.getElementById('planReplaceAll');if(cb)cb.checked=false;
+          setTimeout(function(){if(msg)msg.textContent='';},5000);
+        }).catch(function(err){
+          if(msg){msg.style.color='#c0392b';msg.textContent='Firebase error: '+err.message;}
+        });
+      };
+      var replaceAll=document.getElementById('planReplaceAll');
+      if(replaceAll&&replaceAll.checked){
+        if(msg){msg.style.color='#1a5fa8';msg.textContent='Clearing existing data…';}
+        DB.ref('/planning').remove().then(doImport).catch(function(err){
+          if(msg){msg.style.color='#c0392b';msg.textContent='Firebase error: '+err.message;}
+        });
+      } else {
+        doImport();
+      }
     }catch(ex){
       if(msg){msg.style.color='#c0392b';msg.textContent='Error reading file: '+ex.message;}
     }
