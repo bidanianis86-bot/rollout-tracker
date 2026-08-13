@@ -5498,10 +5498,10 @@ function importPlanningExcel(input){
       // Find the header row (contains "Site")
       var headerRow=-1;
       for(var i=0;i<aoa.length;i++){
-        if(aoa[i]&&aoa[i][0]==='Site'){headerRow=i;break;}
+        if(aoa[i]&&(aoa[i][0]==='Site ID'||aoa[i][0]==='Site')){headerRow=i;break;}
       }
       if(headerRow<0){
-        if(msg){msg.style.color='#c0392b';msg.textContent='Could not find header row (expected "Site" in column A).';}
+        if(msg){msg.style.color='#c0392b';msg.textContent='Could not find header row (expected "Site ID" in column A).';}
         return;
       }
       // Map header names → col index
