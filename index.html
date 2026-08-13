@@ -5530,8 +5530,10 @@ function importPlanningExcel(input){
         return s;
       }
 
-      var VALID_LOG={'WH':1,'Transit':1,'On site':1};
-      var VALID_ST={'Pending':1,'In Progress':1,'Done':1,'Blocked':1};
+      var LOG_MAP={'wh':'WH','transit':'Transit','on site':'On site','onsite':'On site'};
+      var ST_MAP={'pending':'Pending','in progress':'In Progress','inprogress':'In Progress','done':'Done','blocked':'Blocked'};
+      function normLog(v){return LOG_MAP[(v||'').toLowerCase().trim()]||'WH';}
+      function normSt(v){return ST_MAP[(v||'').toLowerCase().trim()]||'Pending';}
 
       var pushed=0,skipped=0;
       var updates={};
@@ -5541,10 +5543,8 @@ function importPlanningExcel(input){
         var site=String(row[iSite]).trim();
         // Skip the example row
         if(site==='DAKBV001'&&r===headerRow+2)continue;
-        var logVal=iLog>=0?String(row[iLog]||'').trim():'WH';
-        if(!VALID_LOG[logVal])logVal='WH';
-        var stVal=iSt>=0?String(row[iSt]||'').trim():'Pending';
-        if(!VALID_ST[stVal])stVal='Pending';
+        var logVal=normLog(iLog>=0?row[iLog]:'');
+        var stVal=normSt(iSt>=0?row[iSt]:'');
         var entry={
           site:site,
           siteName:iSiteName>=0?String(row[iSiteName]||'').trim():'',
