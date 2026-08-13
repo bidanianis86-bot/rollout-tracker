@@ -743,9 +743,11 @@ __dbg('DOM ready, awaiting script...');
     </div>
   </div>
   <div style="flex:1;overflow:auto;padding:0 24px 24px">
-    <table id="planTable" style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:950px">
+    <table id="planTable" style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:1150px">
       <thead><tr style="background:#1a3c5e;color:#ffffff">
-        <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;background:#1a3c5e;min-width:95px">Site</th>
+        <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;background:#1a3c5e;min-width:95px">Site ID</th>
+        <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e;min-width:130px">Site Name</th>
+        <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e;min-width:100px">Project</th>
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e;min-width:170px">Details of work</th>
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e;min-width:100px">Request date from WH</th>
         <th style="padding:7px 8px;text-align:left;border-bottom:2px solid #e2e8f0;position:sticky;top:0;background:#1a3c5e;min-width:100px">Delivery date in site</th>
@@ -5380,6 +5382,8 @@ function renderPlanning(){
     if(r._key===_planEditKey){
       html+='<tr style="background:#fffde7">';
       html+='<td style="'+TDV+'"><input style="'+TDI+'" id="pe_site" value="'+(r.site||'').replace(/"/g,'&quot;')+'"></td>';
+      html+='<td style="'+TDV+'"><input style="'+TDI+'" id="pe_sitename" value="'+(r.siteName||'').replace(/"/g,'&quot;')+'"></td>';
+      html+='<td style="'+TDV+'"><input style="'+TDI+'" id="pe_proj" value="'+(r.project||'').replace(/"/g,'&quot;')+'"></td>';
       html+='<td style="'+TDV+'"><input style="'+TDI+'" id="pe_det" value="'+(r.details||'').replace(/"/g,'&quot;')+'"></td>';
       html+='<td style="'+TDV+'"><input style="'+TDI+';min-width:90px" id="pe_reqwh" type="date" value="'+(r.reqwh||'')+'"></td>';
       html+='<td style="'+TDV+'"><input style="'+TDI+';min-width:90px" id="pe_deliv" type="date" value="'+(r.deliv||'')+'"></td>';
@@ -5394,6 +5398,8 @@ function renderPlanning(){
     } else {
       html+='<tr onmouseover="this.style.background=\'#f0f5ff\'" onmouseout="this.style.background=\'\'">';
       html+='<td style="'+TDV+'" title="'+(r.site||'')+'">'+(r.site||'—')+'</td>';
+      html+='<td style="'+TDV+'" title="'+(r.siteName||'')+'">'+(r.siteName||'—')+'</td>';
+      html+='<td style="'+TDV+'" title="'+(r.project||'')+'">'+(r.project||'—')+'</td>';
       html+='<td style="'+TDV+'" title="'+(r.details||'')+'">'+(r.details||'—')+'</td>';
       html+='<td style="'+TDV+'">'+_planFd(r.reqwh)+'</td>';
       html+='<td style="'+TDV+'">'+_planFd(r.deliv)+'</td>';
@@ -5410,7 +5416,7 @@ function renderPlanning(){
     }
   });
   if(!vis.length){
-    html='<tr><td colspan="10" style="padding:24px;text-align:center;color:#aaa;font-size:.85rem">No rows match the current filters.</td></tr>';
+    html='<tr><td colspan="12" style="padding:24px;text-align:center;color:#aaa;font-size:.85rem">No rows match the current filters.</td></tr>';
   }
   tbody.innerHTML=html;
 
@@ -5429,7 +5435,7 @@ function renderPlanning(){
 
 function addPlanningRow(){
   if(!DB){alert('Not connected to Firebase');return;}
-  var newRow={site:'',details:'',reqwh:'',deliv:'',log:'WH',istart:'',iend:'',status:'Pending',team:''};
+  var newRow={site:'',siteName:'',project:'',details:'',reqwh:'',deliv:'',log:'WH',istart:'',iend:'',status:'Pending',team:''};
   DB.ref('/planning').push(newRow).then(function(ref){
     _planEditKey=ref.key;
     // renderPlanning will be called by the Firebase listener
@@ -5450,6 +5456,8 @@ function savePlanningRow(key){
   if(!DB)return;
   var data={
     site:(document.getElementById('pe_site')||{}).value||'',
+    siteName:(document.getElementById('pe_sitename')||{}).value||'',
+    project:(document.getElementById('pe_proj')||{}).value||'',
     details:(document.getElementById('pe_det')||{}).value||'',
     reqwh:(document.getElementById('pe_reqwh')||{}).value||'',
     deliv:(document.getElementById('pe_deliv')||{}).value||'',
@@ -5481,7 +5489,7 @@ function importPlanningExcel(input){
   reader.onload=function(e){
     try{
       var data=new Uint8Array(e.target.result);
-      var wb=XLSX.read(data,{type:'uint8array',cellDates:true});
+      var wb=XLSX.read(data,{type:'array',cellDates:true});
       // Read first sheet named "Planning" or fall back to first sheet
       var sheetName=wb.SheetNames.indexOf('Planning')>=0?'Planning':wb.SheetNames[0];
       var ws=wb.Sheets[sheetName];
@@ -5499,7 +5507,8 @@ function importPlanningExcel(input){
       // Map header names → col index
       var hdr=aoa[headerRow];
       function ci(name){return hdr.indexOf(name);}
-      var iSite=ci('Site'),iDet=ci('Details of work'),iReq=ci('Request date from WH'),
+      var iSite=ci('Site ID'),iSiteName=ci('Site Name'),iProj=ci('Project'),
+          iDet=ci('Details of work'),iReq=ci('Request date from WH'),
           iDel=ci('Delivery date in site'),iLog=ci('Logistics Status'),
           iIs=ci('Install. start'),iIe=ci('Install. end'),
           iSt=ci('Work task status'),iTm=ci('Team');
@@ -5538,6 +5547,8 @@ function importPlanningExcel(input){
         if(!VALID_ST[stVal])stVal='Pending';
         var entry={
           site:site,
+          siteName:iSiteName>=0?String(row[iSiteName]||'').trim():'',
+          project:iProj>=0?String(row[iProj]||'').trim():'',
           details:iDet>=0?String(row[iDet]||'').trim():'',
           reqwh:iReq>=0?_toIso(row[iReq]):'',
           deliv:iDel>=0?_toIso(row[iDel]):'',
