@@ -5531,7 +5531,7 @@ function importPlanningExcel(input){
       }
 
       var LOG_MAP={'wh':'WH','transit':'Transit','on site':'On site','onsite':'On site'};
-      var ST_MAP={'pending':'Pending','in progress':'In Progress','inprogress':'In Progress','done':'Done','blocked':'Blocked'};
+      var ST_MAP={'pending':'Pending','in progress':'In Progress','inprogress':'In Progress','on going':'In Progress','ongoing':'In Progress','in cours':'In Progress','done':'Done','terminé':'Done','termine':'Done','blocked':'Blocked','bloqué':'Blocked','bloque':'Blocked'};
       function normLog(v){return LOG_MAP[(v||'').toLowerCase().trim()]||'WH';}
       function normSt(v){return ST_MAP[(v||'').toLowerCase().trim()]||'Pending';}
 
