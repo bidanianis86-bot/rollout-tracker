@@ -2059,7 +2059,8 @@ function renderDashKpis(){
       if(!r||!r[0])return;
       if(!(r[p.idx]||_inStaticActiveMap(r[0],p.key)||_inEquipMap(r[0],p.key)))return;
       tot++;
-      if((states[r[0]]||{}).status==='done')dn++;
+      var _dst=(projStates[r[0]]||{})[p.key]||(states[r[0]]||{}).status||'none';
+      if(_dst==='done')dn++;
     });
     return {label:p.label,color:p.color,total:tot,done:dn};
   }).filter(function(p){return p.total>0;});
