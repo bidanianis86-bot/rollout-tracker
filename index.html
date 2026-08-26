@@ -2269,6 +2269,7 @@ function renderDashKpis(){
           +'<div style="width:'+pct+'%;height:100%;background:#0f766e;border-radius:3px"></div>'
         +'</div>'
         +'<span style="font-size:.7rem;color:#445;min-width:90px;text-align:right">'+d.total+' ('+dnPct+'% done)</span>'
+        +'<span style="font-size:.7rem;color:#dc2626;min-width:68px;text-align:right;font-weight:600">'+(d.done<d.total?(d.total-d.done)+' rem.':'')+'</span>'
         +'</div>';
     });
     // Monthly done
