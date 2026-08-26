@@ -2202,7 +2202,9 @@ function renderDashKpis(){
     var ogByYr={}, ogByTypo={}, ogRemByTypoC={};
     function _normTypo(v){
       if(!v||!v.trim())return'—';
-      return v.trim().replace(/\s+/g,'_').toUpperCase();
+      var s=v.trim().replace(/\s+/g,'_').toUpperCase();
+      s=s.replace(/_\d{3,}$/,''); // strip trailing power suffix e.g. _2000, _4000
+      return s;
     }
     _ogAll.forEach(function(e){
       var sid=e[0], eq=e[1];
