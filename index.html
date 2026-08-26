@@ -2216,10 +2216,12 @@ function renderDashKpis(){
       if(!ogByYr[yr])ogByYr[yr]={total:0,done:0};
       ogByYr[yr].total++;
       if(st==='done')ogByYr[yr].done++;
-      var ty=_normTypo(eq.typo_installee);
-      if(!ogByTypo[ty])ogByTypo[ty]={total:0,done:0};
-      ogByTypo[ty].total++;
-      if(st==='done')ogByTypo[ty].done++;
+      // By typo installée: only done sites; fallback to typo_contractuelle if typo_installee blank
+      if(st==='done'){
+        var ty=_normTypo(eq.typo_installee||eq.typo_contractuelle);
+        if(!ogByTypo[ty])ogByTypo[ty]=0;
+        ogByTypo[ty]++;
+      }
       // Remaining by typo contractuelle (progress or no status only)
       if(st==='progress'||st==='none'){
         var tc=_normTypo(eq.typo_contractuelle);
@@ -2262,22 +2264,18 @@ function renderDashKpis(){
         +'<span style="font-size:.7rem;color:#445;min-width:80px;text-align:right">'+d.done+' / '+d.total+' ('+p+'%)</span>'
         +'</div>';
     });
-    // By typo installée
-    var maxTypo=Math.max.apply(null,Object.values(ogByTypo).map(function(v){return v.total;}))||1;
-    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">By typo install&#233;e</div>';
-    Object.keys(ogByTypo).sort(function(a,b){
-      if(a==='—')return 1; if(b==='—')return -1;
-      return ogByTypo[b].total-ogByTypo[a].total;
-    }).forEach(function(ty){
-      var d=ogByTypo[ty];
-      var pct=Math.round((d.total/maxTypo)*100);
-      var dnPct=d.total>0?Math.round((d.done/d.total)*100):0;
+    // By typo installée (done sites only; blank typo_installee falls back to typo_contractuelle)
+    var maxTypo=Math.max.apply(null,Object.values(ogByTypo))||1;
+    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">By typo install&#233;e <span style="font-weight:400;text-transform:none">(done sites)</span></div>';
+    Object.keys(ogByTypo).sort(function(a,b){return ogByTypo[b]-ogByTypo[a];}).forEach(function(ty){
+      var cnt=ogByTypo[ty];
+      var pct=Math.round((cnt/maxTypo)*100);
       h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
         +'<span style="font-size:.7rem;color:#0f766e;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+ty+'">'+ty+'</span>'
         +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
           +'<div style="width:'+pct+'%;height:100%;background:#0f766e;border-radius:3px"></div>'
         +'</div>'
-        +'<span style="font-size:.7rem;color:#445;min-width:90px;text-align:right">'+d.total+' ('+dnPct+'% done)</span>'
+        +'<span style="font-size:.7rem;color:#10b981;font-weight:600;min-width:60px;text-align:right">'+cnt+' done</span>'
         +'</div>';
     });
     // Remaining by typo contractuelle
