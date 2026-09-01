@@ -2205,7 +2205,7 @@ function renderDashKpis(){
   if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
     var _ogAll=Object.entries(STATIC_EQUIP_OG_VALS);
     var ogTot=_ogAll.length, ogDn=0, ogPr=0, ogBl=0;
-    var ogByYr={}, ogByTypo={}, ogRemByTypoC={};
+    var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={};
     function _normTypo(v){
       if(!v||!v.trim())return'—';
       var s=v.trim().replace(/\s+/g,'_').toUpperCase();
@@ -2227,6 +2227,13 @@ function renderDashKpis(){
         var ty=_normTypo(eq.typo_installee||eq.typo_contractuelle);
         if(!ogByTypo[ty])ogByTypo[ty]=0;
         ogByTypo[ty]++;
+      }
+      // Order capex by typo contractuelle
+      var soc=eq.status_order_capex||'';
+      var tcn=_normTypo(eq.typo_contractuelle);
+      if(soc==='Ordered'||soc==='Not Ordered'){
+        if(!ogCapexByTypo[soc])ogCapexByTypo[soc]={};
+        ogCapexByTypo[soc][tcn]=(ogCapexByTypo[soc][tcn]||0)+1;
       }
       // Remaining by typo contractuelle (progress or no status only)
       if(st==='progress'||st==='none'){
@@ -2257,6 +2264,13 @@ function renderDashKpis(){
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#10b981">'+ogDn+'<span style="font-size:.8rem;font-weight:400;color:#6b7280"> '+ogDnPct+'%</span></div><div class="kpi-stat-lbl">Done</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#f59e0b">'+ogPr+'</div><div class="kpi-stat-lbl">In progress</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#ef4444">'+ogBl+'</div><div class="kpi-stat-lbl">Blocked</div></div>';
+    h+='</div>';
+    // Capex summary cards
+    var ogOrdered=0,ogNotOrdered=0;
+    _ogAll.forEach(function(e){var soc2=e[1].status_order_capex||'';if(soc2==='Ordered')ogOrdered++;else if(soc2==='Not Ordered')ogNotOrdered++;});
+    h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#065f46">'+ogOrdered+'</div><div class="kpi-stat-lbl">Ordered</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#92400e">'+ogNotOrdered+'</div><div class="kpi-stat-lbl">Not Ordered</div></div>';
     h+='</div>';
     // By year breakdown
     h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">By year</div>';
@@ -2308,6 +2322,31 @@ function renderDashKpis(){
           +'</div>';
       });
     }
+    // Ordered / Not Ordered by typo contractuelle
+    ['Ordered','Not Ordered'].forEach(function(capexLbl){
+      var byT=ogCapexByTypo[capexLbl]||{};
+      var keys=Object.keys(byT).sort(function(a,b){
+        if(a==='—')return 1;if(b==='—')return -1;
+        return byT[b]-byT[a];
+      });
+      if(keys.length===0)return;
+      var maxV=Math.max.apply(null,Object.values(byT))||1;
+      var isOrd=capexLbl==='Ordered';
+      var col=isOrd?'#065f46':'#92400e';
+      var bar=isOrd?'#10b981':'#f59e0b';
+      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">'+capexLbl+' by typo contractuelle</div>';
+      keys.forEach(function(tc){
+        var cnt=byT[tc];
+        var pct=Math.round((cnt/maxV)*100);
+        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +'<span style="font-size:.7rem;color:'+col+';min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
+          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+            +'<div style="width:'+pct+'%;height:100%;background:'+bar+';border-radius:3px"></div>'
+          +'</div>'
+          +'<span style="font-size:.7rem;color:'+col+';font-weight:600;min-width:50px;text-align:right">'+cnt+' sites</span>'
+          +'</div>';
+      });
+    });
     // Monthly done
     h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Done per month</div>';
     ogMo.forEach(function(m){
