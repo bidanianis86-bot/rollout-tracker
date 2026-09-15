@@ -2248,47 +2248,19 @@ function renderDashKpis(){
         else ogRemByTypoC[tc].none++;
       }
     });
-    // Remaining ordered sites by typo contractuelle
-    var ordRemKeys=Object.keys(ogOrdRemByTypo).sort(function(a,b){
-      if(a==='—')return 1;if(b==='—')return -1;
-      return ogOrdRemByTypo[b]-ogOrdRemByTypo[a];
-    });
-    if(ordRemKeys.length>0){
-      var maxOrdRem=Math.max.apply(null,Object.values(ogOrdRemByTypo))||1;
-      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Remaining ordered by typo contractuelle</div>';
-      ordRemKeys.forEach(function(tc){
-        var cnt=ogOrdRemByTypo[tc];
-        var pct=Math.round((cnt/maxOrdRem)*100);
-        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
-          +'<span style="font-size:.7rem;color:#dc2626;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
-          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
-            +'<div style="width:'+pct+'%;height:100%;background:#dc2626;border-radius:3px"></div>'
-          +'</div>'
-          +'<span style="font-size:.7rem;color:#dc2626;font-weight:600;min-width:50px;text-align:right">'+cnt+' rem.</span>'
-          +'</div>';
-      });
-    }
-    // Monthly done — only count sids that exist in STATIC_EQUIP_OG_VALS
-    var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
-    _ogAll.forEach(function(e){
-      var sid=e[0];
-      var s=ogStates[sid];
-      if(!s||s.status!=='done'||!s.followup)return;
-      var d=_parseFollowupDate(s.followup);
-      if(!d)return;
-      ogMo.forEach(function(m){if(d.getFullYear()===m.year&&d.getMonth()===m.month)m.count++;});
-    });
-    var maxOgMo=Math.max.apply(null,ogMo.map(function(m){return m.count;}))||1;
-    var ogDnPct=ogTot>0?((ogDn/ogTot)*100).toFixed(1):'0.0';
-
-    h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites</div>';
+h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites</div>';
     h+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e6ef;padding:10px 12px;margin-bottom:6px">';
-    // 4 stat cards
+    var ogDnPct=ogTot>0?((ogDn/ogTot)*100).toFixed(1):'0.0';
+    // 6 stat cards (incl. Ordered / Not Ordered)
+    var ogOrdered=0,ogNotOrdered=0;
+    _ogAll.forEach(function(e){var soc2=e[1].status_order_capex||'';if(soc2==='Ordered')ogOrdered++;else if(soc2==='Not Ordered')ogNotOrdered++;});
     h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#0f766e">'+ogTot+'</div><div class="kpi-stat-lbl">Total OG sites</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#10b981">'+ogDn+'<span style="font-size:.8rem;font-weight:400;color:#6b7280"> '+ogDnPct+'%</span></div><div class="kpi-stat-lbl">Done</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#f59e0b">'+ogPr+'</div><div class="kpi-stat-lbl">In progress</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#ef4444">'+ogBl+'</div><div class="kpi-stat-lbl">Blocked</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#065f46">'+ogOrdered+'</div><div class="kpi-stat-lbl">Ordered</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#92400e">'+ogNotOrdered+'</div><div class="kpi-stat-lbl">Not Ordered</div></div>';
     h+='</div>';
     // By year breakdown
     h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">By year</div>';
@@ -2316,14 +2288,28 @@ function renderDashKpis(){
         +'<span style="font-size:.7rem;color:#10b981;font-weight:600;min-width:60px;text-align:right">'+cnt+' done</span>'
         +'</div>';
     });
-    // Capex summary cards
-    var ogOrdered=0,ogNotOrdered=0;
-    _ogAll.forEach(function(e){var soc2=e[1].status_order_capex||'';if(soc2==='Ordered')ogOrdered++;else if(soc2==='Not Ordered')ogNotOrdered++;});
-    h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
-    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#065f46">'+ogOrdered+'</div><div class="kpi-stat-lbl">Ordered</div></div>';
-    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#92400e">'+ogNotOrdered+'</div><div class="kpi-stat-lbl">Not Ordered</div></div>';
-    h+='</div>';
-    // Ordered / Not Ordered by typo contractuelle
+    // Remaining ordered sites by typo contractuelle
+    var ordRemKeys=Object.keys(ogOrdRemByTypo).sort(function(a,b){
+      if(a==='—')return 1;if(b==='—')return -1;
+      return ogOrdRemByTypo[b]-ogOrdRemByTypo[a];
+    });
+    if(ordRemKeys.length>0){
+      var maxOrdRem=Math.max.apply(null,Object.values(ogOrdRemByTypo))||1;
+      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Remaining ordered by typo contractuelle</div>';
+      ordRemKeys.forEach(function(tc){
+        var cnt=ogOrdRemByTypo[tc];
+        var pct=Math.round((cnt/maxOrdRem)*100);
+        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +'<span style="font-size:.7rem;color:#dc2626;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
+          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+            +'<div style="width:'+pct+'%;height:100%;background:#dc2626;border-radius:3px"></div>'
+          +'</div>'
+          +'<span style="font-size:.7rem;color:#dc2626;font-weight:600;min-width:50px;text-align:right">'+cnt+' rem.</span>'
+          +'</div>';
+      });
+    }
+
+        // Ordered / Not Ordered by typo contractuelle
     ['Ordered','Not Ordered'].forEach(function(capexLbl){
       var byT=ogCapexByTypo[capexLbl]||{};
       var keys=Object.keys(byT).sort(function(a,b){
@@ -2373,7 +2359,18 @@ function renderDashKpis(){
       });
     }
     // Monthly done
-    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Done per month</div>';
+    h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">    // Monthly done — only count sids that exist in STATIC_EQUIP_OG_VALS
+    var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
+    _ogAll.forEach(function(e){
+      var sid=e[0];
+      var s=ogStates[sid];
+      if(!s||s.status!=='done'||!s.followup)return;
+      var d=_parseFollowupDate(s.followup);
+      if(!d)return;
+      ogMo.forEach(function(m){if(d.getFullYear()===m.year&&d.getMonth()===m.month)m.count++;});
+    });
+    var maxOgMo=Math.max.apply(null,ogMo.map(function(m){return m.count;}))||1;
+    Done per month</div>';
     ogMo.forEach(function(m){
       var isCur=m.year===curY&&m.month===curM;
       var pct=Math.round((m.count/maxOgMo)*100);
