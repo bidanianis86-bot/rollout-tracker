@@ -2290,13 +2290,6 @@ function renderDashKpis(){
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#f59e0b">'+ogPr+'</div><div class="kpi-stat-lbl">In progress</div></div>';
     h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#ef4444">'+ogBl+'</div><div class="kpi-stat-lbl">Blocked</div></div>';
     h+='</div>';
-    // Capex summary cards
-    var ogOrdered=0,ogNotOrdered=0;
-    _ogAll.forEach(function(e){var soc2=e[1].status_order_capex||'';if(soc2==='Ordered')ogOrdered++;else if(soc2==='Not Ordered')ogNotOrdered++;});
-    h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
-    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#065f46">'+ogOrdered+'</div><div class="kpi-stat-lbl">Ordered</div></div>';
-    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#92400e">'+ogNotOrdered+'</div><div class="kpi-stat-lbl">Not Ordered</div></div>';
-    h+='</div>';
     // By year breakdown
     h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">By year</div>';
     Object.keys(ogByYr).sort().forEach(function(yr){
@@ -2323,30 +2316,13 @@ function renderDashKpis(){
         +'<span style="font-size:.7rem;color:#10b981;font-weight:600;min-width:60px;text-align:right">'+cnt+' done</span>'
         +'</div>';
     });
-    // Remaining by typo contractuelle
-    var remKeys=Object.keys(ogRemByTypoC).sort(function(a,b){
-      if(a==='—')return 1; if(b==='—')return -1;
-      var ta=(ogRemByTypoC[a].progress+ogRemByTypoC[a].none), tb=(ogRemByTypoC[b].progress+ogRemByTypoC[b].none);
-      return tb-ta;
-    });
-    if(remKeys.length>0){
-      var maxRem=Math.max.apply(null,remKeys.map(function(k){return ogRemByTypoC[k].progress+ogRemByTypoC[k].none;}))||1;
-      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Remaining by typo contractuelle</div>';
-      remKeys.forEach(function(tc){
-        var r=ogRemByTypoC[tc];
-        var tot=r.progress+r.none;
-        var pct=Math.round((tot/maxRem)*100);
-        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
-          +'<span style="font-size:.7rem;color:#92400e;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
-          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
-            +'<div style="width:'+pct+'%;height:100%;background:#f59e0b;border-radius:3px"></div>'
-          +'</div>'
-          +'<span style="font-size:.7rem;color:#445;min-width:90px;text-align:right">'
-            +tot+' rem. <span style="color:#0891b2">('+r.progress+' prog.</span> / <span style="color:#94a3b8">'+r.none+' none)</span>'
-          +'</span>'
-          +'</div>';
-      });
-    }
+    // Capex summary cards
+    var ogOrdered=0,ogNotOrdered=0;
+    _ogAll.forEach(function(e){var soc2=e[1].status_order_capex||'';if(soc2==='Ordered')ogOrdered++;else if(soc2==='Not Ordered')ogNotOrdered++;});
+    h+='<div class="kpi-stat-grid" style="margin-bottom:10px">';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#065f46">'+ogOrdered+'</div><div class="kpi-stat-lbl">Ordered</div></div>';
+    h+='<div class="kpi-stat-card"><div class="kpi-stat-val" style="color:#92400e">'+ogNotOrdered+'</div><div class="kpi-stat-lbl">Not Ordered</div></div>';
+    h+='</div>';
     // Ordered / Not Ordered by typo contractuelle
     ['Ordered','Not Ordered'].forEach(function(capexLbl){
       var byT=ogCapexByTypo[capexLbl]||{};
@@ -2372,6 +2348,30 @@ function renderDashKpis(){
           +'</div>';
       });
     });
+    // Remaining by typo contractuelle
+    var remKeys=Object.keys(ogRemByTypoC).sort(function(a,b){
+      if(a==='—')return 1; if(b==='—')return -1;
+      var ta=(ogRemByTypoC[a].progress+ogRemByTypoC[a].none), tb=(ogRemByTypoC[b].progress+ogRemByTypoC[b].none);
+      return tb-ta;
+    });
+    if(remKeys.length>0){
+      var maxRem=Math.max.apply(null,remKeys.map(function(k){return ogRemByTypoC[k].progress+ogRemByTypoC[k].none;}))||1;
+      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Remaining by typo contractuelle</div>';
+      remKeys.forEach(function(tc){
+        var r=ogRemByTypoC[tc];
+        var tot=r.progress+r.none;
+        var pct=Math.round((tot/maxRem)*100);
+        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +'<span style="font-size:.7rem;color:#92400e;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
+          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+            +'<div style="width:'+pct+'%;height:100%;background:#f59e0b;border-radius:3px"></div>'
+          +'</div>'
+          +'<span style="font-size:.7rem;color:#445;min-width:90px;text-align:right">'
+            +tot+' rem. <span style="color:#0891b2">('+r.progress+' prog.</span> / <span style="color:#94a3b8">'+r.none+' none)</span>'
+          +'</span>'
+          +'</div>';
+      });
+    }
     // Monthly done
     h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Done per month</div>';
     ogMo.forEach(function(m){
