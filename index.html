@@ -2236,7 +2236,7 @@ function renderDashKpis(){
         ogCapexByTypo[soc][tcn]=(ogCapexByTypo[soc][tcn]||0)+1;
       }
       // Remaining ordered sites by typo contractuelle
-      if(soc==='Ordered'&&(st==='progress'||st==='none')){
+      if(soc==='Ordered'&&st!=='done'){
         if(!ogOrdRemByTypo[tcn])ogOrdRemByTypo[tcn]=0;
         ogOrdRemByTypo[tcn]++;
       }
