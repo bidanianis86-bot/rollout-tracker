@@ -2205,7 +2205,7 @@ function renderDashKpis(){
   if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
     var _ogAll=Object.entries(STATIC_EQUIP_OG_VALS);
     var ogTot=_ogAll.length, ogDn=0, ogPr=0, ogBl=0;
-    var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={};
+    var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={}, ogOrdRemByTypo={};
     function _normTypo(v){
       if(!v||!v.trim())return'—';
       var s=v.trim().replace(/\s+/g,'_').toUpperCase();
@@ -2235,6 +2235,11 @@ function renderDashKpis(){
         if(!ogCapexByTypo[soc])ogCapexByTypo[soc]={};
         ogCapexByTypo[soc][tcn]=(ogCapexByTypo[soc][tcn]||0)+1;
       }
+      // Remaining ordered sites by typo contractuelle
+      if(soc==='Ordered'&&(st==='progress'||st==='none')){
+        if(!ogOrdRemByTypo[tcn])ogOrdRemByTypo[tcn]=0;
+        ogOrdRemByTypo[tcn]++;
+      }
       // Remaining by typo contractuelle (progress or no status only)
       if(st==='progress'||st==='none'){
         var tc=_normTypo(eq.typo_contractuelle);
@@ -2243,6 +2248,26 @@ function renderDashKpis(){
         else ogRemByTypoC[tc].none++;
       }
     });
+    // Remaining ordered sites by typo contractuelle
+    var ordRemKeys=Object.keys(ogOrdRemByTypo).sort(function(a,b){
+      if(a==='—')return 1;if(b==='—')return -1;
+      return ogOrdRemByTypo[b]-ogOrdRemByTypo[a];
+    });
+    if(ordRemKeys.length>0){
+      var maxOrdRem=Math.max.apply(null,Object.values(ogOrdRemByTypo))||1;
+      h+='<div style="font-size:.68rem;font-weight:600;color:#778;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px">Remaining ordered by typo contractuelle</div>';
+      ordRemKeys.forEach(function(tc){
+        var cnt=ogOrdRemByTypo[tc];
+        var pct=Math.round((cnt/maxOrdRem)*100);
+        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+          +'<span style="font-size:.7rem;color:#dc2626;min-width:90px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+tc+'">'+tc+'</span>'
+          +'<div style="flex:1;height:7px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+            +'<div style="width:'+pct+'%;height:100%;background:#dc2626;border-radius:3px"></div>'
+          +'</div>'
+          +'<span style="font-size:.7rem;color:#dc2626;font-weight:600;min-width:50px;text-align:right">'+cnt+' rem.</span>'
+          +'</div>';
+      });
+    }
     // Monthly done — only count sids that exist in STATIC_EQUIP_OG_VALS
     var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
     _ogAll.forEach(function(e){
