@@ -2205,7 +2205,7 @@ function renderDashKpis(){
   if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
     var _ogAll=Object.entries(STATIC_EQUIP_OG_VALS);
     var ogTot=_ogAll.length, ogDn=0, ogPr=0, ogBl=0;
-    var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={}, ogOrdRemByTypo={};
+    var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={}, ogOrdRemByTypo={}, ogOrdByTypo={}, ogDoneByTypo={};
     function _normTypo(v){
       if(!v||!v.trim())return'—';
       var s=v.trim().replace(/\s+/g,'_').toUpperCase();
@@ -2235,10 +2235,15 @@ function renderDashKpis(){
         if(!ogCapexByTypo[soc])ogCapexByTypo[soc]={};
         ogCapexByTypo[soc][tcn]=(ogCapexByTypo[soc][tcn]||0)+1;
       }
-      // Remaining ordered sites by typo contractuelle
-      if(soc==='Ordered'&&(st==='progress'||st==='none')){
-        if(!ogOrdRemByTypo[tcn])ogOrdRemByTypo[tcn]=0;
-        ogOrdRemByTypo[tcn]++;
+      // Ordered total per typo (for remaining calc)
+      if(soc==='Ordered'){
+        if(!ogOrdByTypo[tcn])ogOrdByTypo[tcn]=0;
+        ogOrdByTypo[tcn]++;
+      }
+      // Done per typo (all done regardless of capex)
+      if(st==='done'){
+        if(!ogDoneByTypo[tcn])ogDoneByTypo[tcn]=0;
+        ogDoneByTypo[tcn]++;
       }
       // Remaining by typo contractuelle (progress or no status only)
       if(st==='progress'||st==='none'){
@@ -2247,6 +2252,11 @@ function renderDashKpis(){
         if(st==='progress')ogRemByTypoC[tc].progress++;
         else ogRemByTypoC[tc].none++;
       }
+    });
+    // Compute remaining ordered per typo: max(0, ordered - all_done)
+    Object.keys(ogOrdByTypo).forEach(function(tc){
+      var rem=Math.max(0,ogOrdByTypo[tc]-(ogDoneByTypo[tc]||0));
+      if(rem>0)ogOrdRemByTypo[tc]=rem;
     });
 h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites</div>';
     h+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e6ef;padding:10px 12px;margin-bottom:6px">';
