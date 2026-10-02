@@ -2369,7 +2369,9 @@ h+='<div class="kpi-sec-title" style="margin-top:14px">OG sites</div>';
       });
     }
     // Monthly done — only count sids that exist in STATIC_EQUIP_OG_VALS
-    var ogMo=months.map(function(m){return{year:m.year,month:m.month,label:m.label,count:0};});
+    // Build 18-month window for OG (sites may have been done since 2025, outside the global 7-month window)
+    var ogMo=[];
+    for(var ogi=17;ogi>=0;ogi--){var ogmd=new Date(now.getFullYear(),now.getMonth()-ogi,1);ogMo.push({year:ogmd.getFullYear(),month:ogmd.getMonth(),label:ogmd.toLocaleString('fr-FR',{month:'short'})+(ogi>=12?' \''+String(ogmd.getFullYear()).slice(2):''),count:0});}
     _ogAll.forEach(function(e){
       var sid=e[0];
       var s=ogStates[sid];
