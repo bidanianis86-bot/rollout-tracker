@@ -2203,7 +2203,14 @@ function renderDashKpis(){
 
   // ── OG Sites KPIs ── (same data source as OG Overview: STATIC_EQUIP_OG_VALS only)
   if(typeof STATIC_EQUIP_OG_VALS!=='undefined'&&typeof ogStates!=='undefined'){
-    var _ogAll=Object.entries(STATIC_EQUIP_OG_VALS);
+    // Merge static OG vals with custom-added sites (same logic as getOgSites)
+    var _ogAllObj=Object.assign({},STATIC_EQUIP_OG_VALS);
+    Object.entries(ogCustomSites).forEach(function([sid,r]){
+      if(r&&r._hidden){delete _ogAllObj[sid];return;}
+      if(_ogAllObj[sid]){var ov={};['site_name','og_year','typo_contractuelle','typo_installee','batch','puissance_w','type','status_order_capex'].forEach(function(k){if(r[k]!==undefined&&r[k]!==null)ov[k]=r[k];});_ogAllObj[sid]=Object.assign({},_ogAllObj[sid],ov);}
+      else{_ogAllObj[sid]={og_year:r.og_year||'OG26',typo_contractuelle:r.typo_contractuelle||'',typo_installee:r.typo_installee||'',batch:r.batch||'',puissance_w:r.puissance_w||'',type:r.type||'',status_order_capex:r.status_order_capex||'',site_name:r.site_name||sid};}
+    });
+    var _ogAll=Object.entries(_ogAllObj);
     var ogTot=_ogAll.length, ogDn=0, ogPr=0, ogBl=0;
     var ogByYr={}, ogByTypo={}, ogRemByTypoC={}, ogCapexByTypo={}, ogOrdRemByTypo={}, ogOrdByTypo={}, ogDoneByTypo={};
     function _normTypo(v){
@@ -5792,7 +5799,14 @@ function getOgSites(yrFilter, stFilter, q){
 }
 
 function renderOgOverview(){
-  const all = Object.entries(STATIC_EQUIP_OG_VALS);
+  // Merge static OG vals with custom-added sites
+  var _ovObj=Object.assign({},STATIC_EQUIP_OG_VALS);
+  Object.entries(ogCustomSites).forEach(function([sid,r]){
+    if(r&&r._hidden){delete _ovObj[sid];return;}
+    if(_ovObj[sid]){var ov={};['site_name','og_year','typo_contractuelle','typo_installee','batch','puissance_w','type','status_order_capex'].forEach(function(k){if(r[k]!==undefined&&r[k]!==null)ov[k]=r[k];});_ovObj[sid]=Object.assign({},_ovObj[sid],ov);}
+    else{_ovObj[sid]={og_year:r.og_year||'OG26',typo_contractuelle:r.typo_contractuelle||'',typo_installee:r.typo_installee||'',batch:r.batch||'',puissance_w:r.puissance_w||'',type:r.type||'',status_order_capex:r.status_order_capex||'',site_name:r.site_name||sid};}
+  });
+  const all = Object.entries(_ovObj);
   const sv=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
   sv('ogT',all.length);
   sv('ogT25',all.filter(([,eq])=>eq.og_year==='OG25').length);
